@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>تفعيل الميكروفون - WebMind AI</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #f8fafc;
+      color: #1e293b;
+    }
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 36px 32px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      max-width: 420px;
+      text-align: center;
+      border: 1px solid #e2e8f0;
+    }
+    .icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: #eff6ff;
+      color: #2563eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 30px;
+    }
+    h1 {
+      font-size: 20px;
+      margin: 0 0 10px;
+      color: #0f172a;
+    }
+    p {
+      font-size: 14px;
+      color: #64748b;
+      line-height: 1.6;
+      margin: 0 0 24px;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    .status {
+      margin-top: 16px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🎙️</div>
+    <h1>تفعيل إذن الصوت والميكروفون</h1>
+    <p>يرجى النقر على الزر أدناه ثم اختيار <strong>"سماح" (Allow)</strong> لتمكين الإضافة من الاستماع وتفريغ الصوت المباشر.</p>
+    <button id="btn-request-mic">تفعيل الميكروفون الآن</button>
+    <div id="status-msg" class="status"></div>
+  </div>
+
+  <script>
+    const btn = document.getElementById('btn-request-mic');
+    const status = document.getElementById('status-msg');
+
+    async function askMic() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(t => t.stop());
+        status.style.color = '#16a34a';
+        status.innerText = '✅ تم تفعيل الميكروفون بنجاح! سيتم إغلاق الصفحة تلقائياً...';
+        btn.style.display = 'none';
+        chrome.storage.local.set({ micGranted: true });
+        setTimeout(() => {
+          window.close();
+        }, 1200);
+      } catch (err) {
+        status.style.color = '#dc2626';
+        status.innerText = '❌ لم يتم منح الإذن: ' + (err.message || 'يرجى النقر واختيار Allow');
+      }
+    }
+
+    btn.addEventListener('click', askMic);
+    // Auto-trigger on page open
+    window.addEventListener('DOMContentLoaded', askMic);
+  </script>
+</body>
+</html>

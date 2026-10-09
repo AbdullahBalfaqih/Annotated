@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { background: white; font-family: sans-serif; padding: 50px; }
+    .track-wrap {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      position: relative;
+    }
+    .track-line {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 7px;
+      background: #E3E3E3;
+      transform: translateY(-50%);
+      z-index: 1;
+      border-radius: 999px;
+    }
+    .slot {
+      width: 64px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 2;
+    }
+    .img-x {
+      width: 62px;
+      height: 62px;
+      object-fit: contain;
+    }
+    .img-yt {
+      width: 88px;
+      height: 88px;
+      object-fit: contain;
+      max-width: none;
+    }
+    .img-pod {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+      max-width: none;
+    }
+    .img-gh {
+      width: 66px;
+      height: 66px;
+      object-fit: contain;
+    }
+    .img-app {
+      width: 95px;
+      height: 95px;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body>
+  <h2>Testing Icon Alignment and Visual Scale</h2>
+  <div class="track-wrap">
+    <div class="track-line"></div>
+    <div class="slot"><img class="img-x" src="https://api.builder.io/api/v1/image/assets/TEMP/3fa379eb2359ae0c38e089c8c8ca4345fffad47e?width=220" /></div>
+    <div class="slot"><img class="img-yt" src="https://api.builder.io/api/v1/image/assets/TEMP/f9ac55019fa5ecf7538be7d497991516a1dcf298?width=360" /></div>
+    <div class="slot"><img class="img-pod" src="https://api.builder.io/api/v1/image/assets/TEMP/80149202d18855d0afdc3bf790d25cf31e1200a2?width=328" /></div>
+    <div class="slot"><img class="img-gh" src="https://api.builder.io/api/v1/image/assets/TEMP/3234749be656c40fae05a02bbf4fc30c9731f35c?width=240" /></div>
+    <div style="flex: 1;"></div>
+    <div style="position: relative; z-index: 2;">
+      <img class="img-app" src="https://api.builder.io/api/v1/image/assets/TEMP/6fd35253221d5dfef88a24a4ad7ff335b84dff63?width=375" />
+    </div>
+  </div>
+</body>
+</html>

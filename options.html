@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>إعدادات WebMind AI - Chrome Extension</title>
+  <style>
+    body {
+      background: #0f172a;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Cairo', sans-serif;
+      max-width: 650px;
+      margin: 40px auto;
+      padding: 24px;
+      direction: rtl;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    h1 {
+      font-size: 22px;
+      margin-bottom: 8px;
+      color: #818cf8;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    p.subtitle {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    input[type="text"], input[type="password"], select {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: #0f172a;
+      color: white;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    button {
+      background: linear-gradient(135deg, #6366f1, #06b6d4);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    .toast {
+      margin-right: 12px;
+      color: #34d399;
+      font-weight: 600;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>WebMind AI - إعدادات الإضافة</h1>
+    <p class="subtitle">قم بضبط مفتاح API الخاص بك لتوليد التلخيص وتحليل الصفحات باستخدام نماذج Google Gemini.</p>
+
+    <div class="form-group">
+      <label for="api-key">Google Gemini API Key:</label>
+      <input type="password" id="api-key" placeholder="AIzaSy...">
+      <small style="color:#06b6d4; display:block; margin-top:6px;">
+        يمكنك استخراج مفتاح مجاني من <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#06b6d4;">Google AI Studio</a>.
+      </small>
+    </div>
+
+    <div class="form-group">
+      <label for="model">النموذج المستخدم (AI Model):</label>
+      <select id="model">
+        <option value="gemini-1.5-flash">Gemini 1.5 Flash (سريع جداً وموصى به)</option>
+        <option value="gemini-1.5-pro">Gemini 1.5 Pro (دقيق وللمحتويات الطويلة)</option>
+        <option value="gemini-2.0-flash">Gemini 2.0 Flash (الجيل الأحدث)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <button id="save-btn">حفظ الإعدادات</button>
+      <span class="toast" id="toast">تم حفظ الإعدادات بنجاح!</span>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const apiKeyEl = document.getElementById('api-key');
+      const modelEl = document.getElementById('model');
+      const saveBtn = document.getElementById('save-btn');
+      const toastEl = document.getElementById('toast');
+
+      const settings = await chrome.storage.sync.get(['apiKey', 'model']);
+      if (settings.apiKey) apiKeyEl.value = settings.apiKey;
+      if (settings.model) modelEl.value = settings.model;
+
+      saveBtn.addEventListener('click', async () => {
+        await chrome.storage.sync.set({
+          apiKey: apiKeyEl.value.trim(),
+          model: modelEl.value
+        });
+        toastEl.style.display = 'inline';
+        setTimeout(() => toastEl.style.display = 'none', 3000);
+      });
+    });
+  </script>
+</body>
+</html>

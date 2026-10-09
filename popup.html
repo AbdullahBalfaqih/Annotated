@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" class="notranslate" translate="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="google" content="notranslate">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebMind AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Roboto+Slab:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body class="notranslate" translate="no">
+
+
+  <!-- ═══════ HOME PANEL ═══════ -->
+  <section class="wm-panel active" id="panel-home">
+
+    <!-- Blue Hero -->
+    <div class="home-hero">
+      <div class="hero-nav">
+        <button class="hero-menu-btn" id="hero-menu-btn" data-panel="settings" aria-label="Settings Menu" title="Settings">
+          <span class="menu-bar long"></span>
+          <span class="menu-bar short"></span>
+        </button>
+        <button class="hero-avatar-btn" id="hero-avatar-btn" data-panel="settings" aria-label="Settings" title="Settings">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="hero-text-wrap">
+        <p class="hero-hello" id="hero-hello">Hello, <strong id="hero-user-name">user</strong></p>
+        <div class="hero-slider-track" id="hero-slider-track">
+          <div class="hero-slide active">
+            <h1 class="hero-headline">What can I<br>Analysis for<br>you today?</h1>
+          </div>
+          <div class="hero-slide">
+            <h1 class="hero-headline">Instant AI<br>Summaries of<br>Any Webpage</h1>
+          </div>
+          <div class="hero-slide">
+            <h1 class="hero-headline">Interactive Chat<br>with Full Page<br>Context</h1>
+          </div>
+          <div class="hero-slide">
+            <h1 class="hero-headline">Powered by<br>Google Gemini<br>Intelligence</h1>
+          </div>
+          <div class="hero-slide">
+            <h1 class="hero-headline">Persistent Side<br>Panel for Daily<br>Productivity</h1>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- White Section (Figma / Image 2 Layout) -->
+    <div class="home-white">
+
+      <!-- 3x3 Clean Features Grid (All 9 Features in Main Page) -->
+      <div class="services-grid" id="services-grid">
+        <!-- Row 1 -->
+        <button class="sc-box" id="sc-text" data-panel="create-annotation" data-mode="text" title="Annotate text or webpage">
+          <span class="sc-letter">T</span>
+          <span class="sc-label">Text</span>
+        </button>
+        <button class="sc-box" id="sc-voice" data-panel="create-annotation" data-mode="voice" title="Record voice commentary on annotation">
+          <div class="sc-svg-wrap">
+            <svg width="34" height="34" viewBox="0 0 38 38" fill="none">
+              <path d="M7.6 15.2V23.75M13.3 9.5V31.35M19 3.8V36.1M24.7 10.45V29.45M30.4 16.15V24.7" stroke="#394366" stroke-width="1.9" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <span class="sc-label">Voice</span>
+        </button>
+        <button class="sc-box" id="sc-conversation" data-panel="conversation" title="Open discussion and comments">
+          <div class="sc-svg-wrap">
+            <svg width="34" height="34" viewBox="0 0 38 38" fill="none">
+              <path d="M13.3 11.4V4.75H32.3V23.75L24.7 19.95M4.75 11.4H24.7V26.6H11.4L4.75 32.3V11.4Z" stroke="#394366" stroke-width="1.9"/>
+            </svg>
+          </div>
+          <span class="sc-label">Conversation</span>
+        </button>
+
+        <!-- Row 2 -->
+        <button class="sc-box" id="sc-camera" data-panel="create-annotation" data-mode="camera" title="Capture screenshot to annotate">
+          <div class="sc-svg-wrap">
+            <svg width="34" height="34" viewBox="0 0 38 38" fill="none">
+              <path d="M13.3 4.75H8.55C6.017 4.75 4.75 6.017 4.75 8.55V14.25M24.7 4.75H29.45C31.983 4.75 33.25 6.017 33.25 8.55V14.25M4.75 23.75V29.45C4.75 31.983 6.017 33.25 8.55 33.25H13.3M24.7 33.25H29.45C31.983 33.25 33.25 31.983 33.25 29.45V23.75M15.2 11.4C10.767 16.467 10.767 21.217 15.2 25.65M22.8 11.4C27.233 16.467 27.233 21.217 22.8 25.65" stroke="#394366" stroke-width="1.9"/>
+            </svg>
+          </div>
+          <span class="sc-label">Camera</span>
+        </button>
+        <button class="sc-box" id="sc-handwriting" data-panel="handwriting" title="Draw shapes, arrows, or annotations on screen">
+          <div class="sc-svg-wrap">
+            <svg width="34" height="34" viewBox="0 0 38 38" fill="none">
+              <path d="M2.85 24.7C9.183 7.6 12.983 4.434 14.25 15.2C15.517 25.967 18.683 26.917 23.75 18.05C25.65 12.35 27.233 13.3 28.5 20.9C29.767 28.5 31.983 28.817 35.15 21.85" stroke="#394366" stroke-width="1.9"/>
+            </svg>
+          </div>
+          <span class="sc-label">Handwriting</span>
+        </button>
+        <button class="sc-box" id="sc-import" data-panel="import" title="Import URL or content to annotate">
+          <div class="sc-svg-wrap">
+            <svg width="34" height="34" viewBox="0 0 38 38" fill="none">
+              <path d="M26.6 16.15V30.4H6.65V9.5H19.95M25.65 2.85V15.2M32.3 9.5L25.65 15.2L19 9.5M8.55 28.5L16.15 18.05L24.7 28.5" stroke="#394366" stroke-width="1.9"/>
+              <path d="M13.3 16.15C14.349 16.15 15.2 15.299 15.2 14.25C15.2 13.2 14.349 12.35 13.3 12.35C12.25 12.35 11.4 13.2 11.4 14.25C11.4 15.299 12.25 16.15 13.3 16.15Z" stroke="#394366" stroke-width="1.9"/>
+            </svg>
+          </div>
+          <span class="sc-label">Import</span>
+        </button>
+
+        <!-- Row 3 (Translate, Code, Listen) -->
+        <button class="sc-box" id="sc-translate" data-panel="translate" title="Translate selected content">
+          <div class="sc-svg-wrap">
+            <svg width="34" height="34" viewBox="0 0 38 38" fill="none">
+              <circle cx="19" cy="19" r="14.25" stroke="#394366" stroke-width="1.9"/>
+              <path d="M4.75 19H33.25" stroke="#394366" stroke-width="1.9"/>
+              <path d="M19 4.75C22.8 9.5 24.7 14.25 24.7 19C24.7 23.75 22.8 28.5 19 33.25C15.2 28.5 13.3 23.75 13.3 19C13.3 14.25 15.2 9.5 19 4.75Z" stroke="#394366" stroke-width="1.9"/>
+            </svg>
+          </div>
+          <span class="sc-label">Translate</span>
+        </button>
+        <button class="sc-box" id="sc-code" data-panel="create-annotation" data-mode="code" title="Review and annotate code snippet">
+          <div class="sc-svg-wrap">
+            <svg width="34" height="34" viewBox="0 0 38 38" fill="none">
+              <path d="M12.35 12.35L5.7 19L12.35 25.65" stroke="#394366" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M25.65 12.35L32.3 19L25.65 25.65" stroke="#394366" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M21.85 8.55L16.15 29.45" stroke="#394366" stroke-width="1.9" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <span class="sc-label">Code</span>
+        </button>
+        <button class="sc-box" id="sc-listen" data-panel="listen" title="Listen to selected text via speech">
+          <div class="sc-svg-wrap">
+            <svg width="34" height="34" viewBox="0 0 38 38" fill="none">
+              <path d="M6.65 20.9V17.1C6.65 10.28 12.18 4.75 19 4.75C25.82 4.75 31.35 10.28 31.35 17.1V20.9" stroke="#394366" stroke-width="1.9" stroke-linecap="round"/>
+              <rect x="4.75" y="19" width="6.65" height="12.35" rx="3.32" stroke="#394366" stroke-width="1.9"/>
+              <rect x="26.6" y="19" width="6.65" height="12.35" rx="3.32" stroke="#394366" stroke-width="1.9"/>
+            </svg>
+          </div>
+          <span class="sc-label">Listen</span>
+        </button>
+      </div>
+
+      <!-- ═════════ HEART OF THE PROJECT: CREATE ANNOTATION CTA ═════════ -->
+      <div class="create-annotation-cta-wrap">
+        <button class="btn-create-annotation-hero" id="btn-hero-create-annotation" data-panel="create-annotation">
+          <div class="cta-left">
+            <span class="cta-icon-circle">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5v14M5 12h14"/>
+              </svg>
+            </span>
+            <div class="cta-text-group">
+              <span class="cta-title">Create Annotation</span>
+              <span class="cta-subtitle">Capture & annotate video moments or text</span>
+            </div>
+          </div>
+          <span class="cta-arrow">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </span>
+        </button>
+      </div>
+
+      <!-- Hidden elements for JS compatibility -->
+      <span id="wm-page-domain" style="display:none"></span>
+      <span id="wm-page-title" style="display:none"></span>
+      <span id="wm-word-count" style="display:none"></span>
+      <span id="wm-read-time" style="display:none"></span>
+    </div>
+
+  </section>
+
+  <!-- ═══════ SUMMARY PANEL ═══════ -->
+  <section class="wm-panel" id="panel-summary">
+    <div class="inner-header">
+      <button class="inner-back-btn" data-panel="home">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span class="inner-header-title">Page Summary</span>
+      <div id="wm-api-status" class="api-pill">
+        <span class="status-dot"></span>
+        <span class="status-text">Demo mode</span>
+      </div>
+    </div>
+    <div class="panel-body">
+      <button class="wm-btn-primary" id="btn-summarize-now">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Summarize This Page
+      </button>
+      <div class="wm-result-box" id="summary-result-box">
+        <div class="wm-empty-state-inner">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <p>Click <strong>Summarize</strong> to get an AI summary of the current page.</p>
+        </div>
+      </div>
+      <div class="wm-result-actions hidden" id="summary-actions-toolbar">
+        <button class="wm-ghost-btn" id="btn-copy-summary">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy
+        </button>
+        <button class="wm-ghost-btn" id="btn-download-summary">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download
+        </button>
+        <button class="wm-ghost-btn" id="btn-share-summary">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>Share
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ CHAT PANEL ═══════ -->
+  <section class="wm-panel" id="panel-chat">
+    <div class="inner-header">
+      <button class="inner-back-btn" data-panel="home"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <span class="inner-header-title">AI Chat</span>
+    </div>
+    <div class="panel-body">
+      <div class="wm-chat-chips">
+        <span class="suggestion-chip" data-prompt="What is the main topic of this article?">Main topic</span>
+        <span class="suggestion-chip" data-prompt="Summarize the top 3 key points of this page">Top 3 points</span>
+        <span class="suggestion-chip" data-prompt="Are there any important statistics or numbers?">Statistics</span>
+      </div>
+      <div class="wm-chat-history" id="chat-history-list">
+        <div class="wm-chat-bubble bot">Hi! I'm your AI assistant. How can I help you with this page?</div>
+      </div>
+      <div class="wm-chat-bar">
+        <input type="text" id="chat-input" placeholder="Ask anything about this page..." autocomplete="off">
+        <button id="chat-send-btn" class="wm-send-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ HISTORY PANEL ═══════ -->
+  <section class="wm-panel" id="panel-history">
+    <div class="inner-header">
+      <button class="inner-back-btn" data-panel="home"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <span class="inner-header-title">History</span>
+    </div>
+    <div class="panel-body">
+      <div class="wm-search-row">
+        <div class="wm-search-wrap">
+          <svg class="wm-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="history-search" placeholder="Search history..." class="wm-search-input">
+        </div>
+        <button id="btn-clear-history" class="wm-danger-btn">Clear</button>
+      </div>
+      <div class="wm-history-list" id="history-items-container">
+        <div class="wm-empty-state">No saved summaries yet.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ SETTINGS PANEL ═══════ -->
+  <section class="wm-panel" id="panel-settings">
+    <div class="inner-header">
+      <button class="inner-back-btn" data-panel="home"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <span class="inner-header-title">Settings</span>
+    </div>
+    <div class="panel-body" style="overflow-y:auto;">
+      <div class="settings-section">
+        <div class="settings-group-label">Gemini API Key</div>
+        <label class="setting-label">Google Gemini API Key<span class="setting-desc">Get a free key from Google AI Studio</span></label>
+        <div class="wm-input-row">
+          <input type="password" id="setting-api-key" placeholder="AIzaSy..." class="wm-text-input">
+          <button id="toggle-key-visibility" class="wm-icon-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" class="wm-link">Get a free key here →</a>
+      </div>
+      <div class="settings-section">
+        <div class="settings-group-label">Model Settings</div>
+        <label class="setting-label" for="setting-model">AI Model</label>
+        <select id="setting-model" class="wm-select">
+          <option value="gemini-1.5-flash">Gemini 1.5 Flash — Fast & efficient</option>
+          <option value="gemini-1.5-pro">Gemini 1.5 Pro — Deep analysis</option>
+          <option value="gemini-2.0-flash">Gemini 2.0 Flash — Next generation</option>
+        </select>
+        <label class="setting-label" for="setting-summary-length">Summary Length</label>
+        <select id="setting-summary-length" class="wm-select">
+          <option value="medium">Medium — Fast & concise</option>
+          <option value="short">Short — TL;DR only</option>
+          <option value="detailed">Detailed — Full analysis</option>
+        </select>
+      </div>
+      <div class="settings-footer">
+        <button id="btn-save-settings" class="wm-btn-primary full">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save Settings
+        </button>
+        <span class="wm-save-toast hidden" id="save-toast">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Saved!
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ TRANSLATE PANEL ═══════ -->
+  <section class="wm-panel" id="panel-translate">
+    <div class="inner-header">
+      <button class="inner-back-btn" data-panel="home"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <span class="inner-header-title">AI Translate</span>
+    </div>
+    <div class="panel-body tr-panel-body">
+      <!-- Target Language + Translate Page Bar -->
+      <div class="tr-top-section">
+        <label class="setting-label" for="translate-target-lang">Target Language</label>
+        <div class="tr-controls-row">
+          <div class="tr-select-container">
+            <select id="translate-target-lang" class="wm-select tr-lang-select">
+              <option value="English">English</option>
+              <option value="Arabic">Arabic</option>
+              <option value="French">French</option>
+              <option value="Spanish">Spanish</option>
+              <option value="German">German</option>
+              <option value="Turkish">Turkish</option>
+              <option value="Japanese">Japanese</option>
+              <option value="Chinese">Chinese</option>
+              <option value="Russian">Russian</option>
+              <option value="Korean">Korean</option>
+              <option value="Italian">Italian</option>
+              <option value="Portuguese">Portuguese</option>
+            </select>
+          </div>
+          <button id="btn-translate-page" class="tr-btn-page" title="Translate active page">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10A15.3 15.3 0 0 1 8 12a15.3 15.3 0 0 1 4-10z"/></svg>
+            <span>Translate Page</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Custom Text Input Box with embedded action button -->
+      <div class="tr-input-wrapper">
+        <div class="tr-custom-box">
+          <textarea id="translate-custom-input" class="wm-textarea tr-textarea-input" placeholder="Or enter / paste custom text to translate..."></textarea>
+          <div class="tr-input-bottom-bar">
+            <button id="btn-translate-custom" class="tr-btn-translate-text">
+              <span>Translate Text</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Result Box -->
+      <div class="wm-result-box tr-result-container" id="translate-result-box">
+        <div class="wm-placeholder">
+          <p>Choose target language and click <strong>Translate Page</strong> or enter custom text.</p>
+        </div>
+      </div>
+
+      <!-- Bottom Actions Toolbar: Balanced, equal sized, never overflows -->
+      <div class="tr-bottom-toolbar hidden" id="translate-actions-toolbar">
+        <button class="tr-tool-btn" id="btn-copy-translate" title="Copy translated text">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          <span>Copy</span>
+        </button>
+        <button class="tr-tool-btn" id="btn-speak-translate" title="Listen to pronunciation">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          <span>Listen</span>
+        </button>
+        <button class="tr-tool-btn tr-tool-btn-primary" id="btn-annot-from-translate" title="Add to Annotation Studio">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          <span>Annotate</span>
+        </button>
+      </div>
+    </div>
+  </section>
+  <!-- ═══════ CODE REVIEW & CRITIQUE PANEL ═══════ -->
+
+  <section class="wm-panel" id="panel-code">
+    <div class="inner-header">
+      <button class="inner-back-btn" data-panel="home" title="Back to Home">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span class="inner-header-title">Code Review & Critique</span>
+    </div>
+
+    <div class="panel-body" style="overflow-y:auto; padding-bottom:24px;">
+      
+      <!-- CODE TARGET HEADER (Clean GitHub Source on Top, then Repo & File) -->
+      <div class="code-source-header">
+        <div class="code-platform-badge">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="#0F172A"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          <span id="code-source-type-label">GitHub</span>
+        </div>
+        <div class="code-source-info">
+          <div class="code-repo-title" id="code-repo-title" title="Target Repository">facebook / react</div>
+          <div class="code-file-path" id="code-file-path" title="File Path">packages/react/src/useDebounce.ts</div>
+        </div>
+      </div>
+
+      <!-- TARGET LINE NUMBERS & ACTIONS BAR (Clean stacked layout, no crowding) -->
+      <div class="code-controls-stack">
+        <!-- Row 1: Line Selector -->
+        <div class="code-lines-row">
+          <span class="lines-label">Lines:</span>
+          <div class="lines-input-group">
+            <span class="line-prefix">L</span>
+            <input type="number" id="code-line-start" class="line-input" value="6" min="1" max="99999" title="Start Line">
+            <span class="line-sep">—</span>
+            <span class="line-prefix">L</span>
+            <input type="number" id="code-line-end" class="line-input" value="6" min="1" max="99999" title="End Line">
+          </div>
+        </div>
+
+        <!-- Row 2: Unfilled Action Buttons -->
+        <div class="code-actions-row">
+          <button class="code-outline-btn" id="btn-copy-target-url" title="Copy code URL with line number">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            <span>Copy URL</span>
+          </button>
+          <button class="code-outline-btn" id="btn-extract-github-code" title="Re-extract code from active tab">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            <span>Extract Code</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- CODE SNIPPET VIEWER (Dark modern syntax container with dynamic interactive line highlighting) -->
+      <div class="code-viewer-container" id="code-viewer-container">
+        <div class="code-viewer-header">
+          <div class="code-viewer-dots">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+          </div>
+          <span class="code-viewer-filename" id="code-viewer-filename">__manifest__.py</span>
+          <span class="code-viewer-lang" id="code-viewer-lang">Python</span>
+        </div>
+        <div class="code-viewer-body" id="code-viewer-body">
+          <div class="code-lines-list" id="code-lines-list">
+            <!-- Dynamically populated rows with line number and code, with exact blue highlight on selected lines! -->
+          </div>
+        </div>
+        <textarea id="code-snippet-input" style="display:none;"></textarea>
+      </div>
+
+      <!-- CRITIQUE FOCUS (Clean Rectangular Buttons Below Title - No Icons) -->
+      <div class="code-critique-chips-wrap">
+        <span class="critique-chips-label">Critique Focus:</span>
+        <div class="code-critique-chips">
+          <button class="critique-chip active" data-type="bug">Bug</button>
+          <button class="critique-chip" data-type="perf">Performance</button>
+          <button class="critique-chip" data-type="security">Security</button>
+          <button class="critique-chip" data-type="cleancode">Clean Code</button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           MODERN COMMENT CARD (Exact Replica of Zlata Dobrik style)
+      ══════════════════════════════════════════════════════════════ -->
+      <div class="pro-comment-card" id="code-comment-card">
+        <!-- Top Profile Row -->
+        <div class="comment-card-header">
+          <div class="comment-author-wrap">
+            <img class="comment-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80" alt="avatar" />
+            <div class="comment-author-meta">
+              <span class="comment-author-name">Zlata Dobrik</span>
+              <span class="comment-author-handle">@zlata.xoxo</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Large Spacious Text Input -->
+        <div class="comment-input-area">
+          <textarea id="code-comment-input" class="comment-card-textarea" placeholder="Write your code critique, review notes or suggestions..."></textarea>
+        </div>
+
+        <!-- Attached Media Strip (Chips for Diagram/Image and Voice) -->
+        <div class="comment-attachments-strip hidden" id="code-attachments-strip">
+          <!-- Image/Diagram Preview Chip -->
+          <div class="attachment-chip image-chip hidden" id="code-chip-image-preview">
+            <img id="code-chip-img-src" src="" alt="attachment" />
+            <span class="chip-label">Diagram</span>
+            <button class="chip-remove-btn" id="btn-code-remove-chip-img" title="Remove diagram">×</button>
+          </div>
+          <!-- Voice Preview Chip -->
+          <div class="attachment-chip voice-chip hidden" id="code-chip-voice-preview">
+            <span class="chip-voice-icon">🎙️</span>
+            <span class="chip-voice-text" id="code-chip-voice-dur">Voice note</span>
+            <button class="chip-voice-play-btn" id="btn-code-chip-play-voice" title="Play recording">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+            </button>
+            <button class="chip-remove-btn" id="btn-code-remove-chip-voice" title="Remove voice">×</button>
+            <audio id="code-chip-voice-audio" style="display:none;"></audio>
+          </div>
+        </div>
+
+        <!-- Hidden File Input for Custom Image Upload -->
+        <input type="file" id="code-image-upload" accept="image/*" style="display: none;" />
+
+        <!-- Bottom Divider -->
+        <div class="comment-card-divider"></div>
+
+        <!-- Bottom Action Toolbar -->
+        <div class="comment-card-toolbar">
+          <div class="comment-tools-left">
+            <!-- Microphone (Audio recording) -->
+            <button class="comment-tool-icon-btn" id="btn-code-voice" title="Record voice critique note">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            </button>
+
+            <!-- Snapshot / Screenshot of code -->
+            <button class="comment-tool-icon-btn" id="btn-code-snapshot" title="Capture code snapshot">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 7l-7 5 7 5V7z"/>
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+              </svg>
+            </button>
+
+            <!-- Paperclip (Attach architecture diagram / image) -->
+            <button class="comment-tool-icon-btn" id="btn-code-attach" title="Attach picture / architecture diagram">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+              </svg>
+            </button>
+
+            <!-- AI Critique / Suggestions -->
+            <button class="comment-tool-icon-btn" id="btn-code-ai-suggest" title="Generate AI Critique & Suggestions">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Sleek Blue Pill Publish Button -->
+          <button class="btn-publish-pill" id="btn-publish-code-review">
+            Publish
+          </button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           PUBLISHED SOCIAL MEDIA POST CARD (GitHub Code Review Post)
+      ══════════════════════════════════════════════════════════════ -->
+      <!-- ══════════════════════════════════════════════════════════════
+           PUBLISHED SOCIAL MEDIA POST CARD (Clean Minimalist Post)
+      ══════════════════════════════════════════════════════════════ -->
+      <!-- ══════════════════════════════════════════════════════════════
+           TWITTER-STYLE CODE REVIEW COMMENTS & REPLIES THREAD
+      ══════════════════════════════════════════════════════════════ -->
+      <div class="social-feed-stream" id="code-comments-stream">
+        <!-- Initial clean comment matching Image 2 -->
+        <div class="social-feed-card" data-comment-id="seed-1">
+          <!-- Author Header (Avatar + Name + Timestamp) -->
+          <div class="feed-author-header">
+            <img class="feed-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80" alt="avatar" />
+            <div class="feed-author-meta">
+              <span class="feed-author-name">Kriston Watshon</span>
+              <span class="feed-post-time">08:39 am</span>
+            </div>
+          </div>
+
+          <!-- Post Body (Commentary + Blue URL Only) -->
+          <div class="feed-body-wrap">
+            <div class="feed-critique-text">Lorem Ipsum Dolor Sit Amet, Consectetur Adipiscing Elit. Fringilla Natoque Id Aenean.</div>
+            <a class="feed-blue-url" href="https://github.com/AbdullahBalfaqih/-Car_Arachiving-Module/blob/master/car_arachiving/__manifest__.py#L12-L14" target="_blank" rel="noopener noreferrer">https://github.com/AbdullahBalfaqih/-Car_Arachiving-Module/blob/master/car_arachiving/__manifest__.py#L12-L14</a>
+          </div>
+
+          <!-- Single Media Frame (Code Snippet) -->
+          <div class="feed-media-frame">
+            <div class="feed-code-snippet">
+              <pre class="feed-code-pre"><code>'security/ir.model.access.csv',
+'views/car_archive_views.xml',</code></pre>
+            </div>
+          </div>
+
+          <!-- Social Engagement Footer (Like 1,964, Comments 135, Share, Bookmark) -->
+          <div class="feed-footer-actions">
+            <div class="feed-footer-left">
+              <button class="feed-action-btn btn-feed-like" type="button" title="Like">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                </svg>
+                <span class="like-count">1,964</span>
+              </button>
+              <button class="feed-action-btn btn-feed-reply" type="button" title="Comment on this comment (Twitter Reply)">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span class="reply-count">135</span>
+              </button>
+              <button class="feed-action-btn btn-feed-share" type="button" title="Share / Copy Post">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M15 8l5 4-5 4v-3c-5 0-8 2-10 6 1-5 4-9 10-9V8z"/>
+                </svg>
+              </button>
+            </div>
+            <div class="feed-footer-right">
+              <button class="feed-action-btn btn-feed-bookmark" type="button" title="Bookmark">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Threaded Replies List (Twitter Style) -->
+          <div class="thread-replies-list" id="replies-seed-1">
+            <div class="thread-reply-item">
+              <div class="thread-reply-header">
+                <img class="thread-reply-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80" alt="avatar">
+                <span class="thread-reply-author">Zlata Dobrik</span>
+                <span class="thread-reply-time">10m ago</span>
+              </div>
+              <div class="thread-reply-text">Agreed! We should also verify manifest file permission definitions.</div>
+              <div class="thread-reply-footer">
+                <button class="thread-reply-like-btn" type="button">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                  <span>12</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Inline Reply Box (Toggled on clicking Reply) -->
+          <div class="thread-reply-box hidden" id="replybox-seed-1">
+            <div class="thread-reply-box-top">
+              <img class="thread-reply-box-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80" alt="avatar">
+              <textarea class="thread-reply-textarea" placeholder="Post your reply to this comment..."></textarea>
+            </div>
+            <div class="thread-reply-actions-row">
+              <button class="thread-reply-cancel-btn" type="button">Cancel</button>
+              <button class="thread-reply-submit-btn" type="button">Reply</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════ LISTEN PANEL (AUDIO STREAM & TTS) ═══════ -->
+  <section class="wm-panel" id="panel-listen">
+    <div class="inner-header">
+      <button class="inner-back-btn" data-panel="home" title="Back">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+      <span class="inner-header-title">Listen</span>
+      <span class="api-pill" id="listen-queue-badge">0 Opinions</span>
+    </div>
+    <div class="panel-body listen-panel-body">
+      <!-- Top Source Selector (Pill Tabs) -->
+      <div class="listen-source-nav">
+        <button class="listen-nav-btn active" data-source="opinions" id="tab-src-opinions">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+          </svg>
+          Opinions
+        </button>
+        <button class="listen-nav-btn" data-source="summary" id="tab-src-summary">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Summary
+        </button>
+        <button class="listen-nav-btn" data-source="custom" id="tab-src-custom">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Custom
+        </button>
+      </div>
+
+      <!-- Main Audio Card (Crisp, Premium Studio Style) -->
+      <div class="listen-player-card">
+        <!-- Top Status & Track Counter -->
+        <div class="listen-card-topbar">
+          <div class="listen-live-badge" id="listen-live-badge">
+            <span class="listen-status-dot"></span>
+            <span class="listen-status-text" id="tts-status-label">Ready to Listen</span>
+          </div>
+          <span class="listen-counter-pill" id="listen-counter-pill" style="display:none;"></span>
+        </div>
+
+        <!-- Waveform Visualizer -->
+        <div class="listen-wave-row" id="tts-wave-visualizer">
+          <span class="listen-wave-bar"></span>
+          <span class="listen-wave-bar"></span>
+          <span class="listen-wave-bar"></span>
+          <span class="listen-wave-bar"></span>
+          <span class="listen-wave-bar"></span>
+          <span class="listen-wave-bar"></span>
+          <span class="listen-wave-bar"></span>
+          <span class="listen-wave-bar"></span>
+          <span class="listen-wave-bar"></span>
+          <span class="listen-wave-bar"></span>
+          <span class="listen-wave-bar"></span>
+          <span class="listen-wave-bar"></span>
+        </div>
+
+        <!-- Currently Playing Item Details -->
+        <div class="listen-current-item" id="listen-current-item">
+          <!-- Author Header -->
+          <div class="listen-author-row" id="listen-author-row">
+            <div class="listen-author-avatar" id="listen-author-avatar">A</div>
+            <div class="listen-author-meta">
+              <span class="listen-author-name" id="listen-author-name">Annotated Community</span>
+              <span class="listen-author-role" id="listen-author-role">Current Page</span>
+            </div>
+            <span class="listen-item-type-badge" id="listen-item-type-badge">Annotation</span>
+          </div>
+
+          <!-- Quoted snippet if exists -->
+          <div class="listen-quote-box hidden" id="listen-quote-box">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" opacity="0.5"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/></svg>
+            <span class="listen-quote-text" id="listen-quote-text"></span>
+          </div>
+
+          <!-- Main Text/Opinion -->
+          <div class="listen-text-box" id="listen-text-box">
+            <p class="listen-body-text" id="tts-subtext">Click play to listen to opinions on this page.</p>
+          </div>
+        </div>
+
+        <!-- Player Controls Row (Symmetrically Centered) -->
+        <div class="listen-controls-bar">
+          <button class="listen-ctrl-btn stop-btn" id="btn-tts-stop" title="Stop">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+          </button>
+          
+          <button class="listen-ctrl-btn" id="btn-listen-prev" title="Previous Opinion">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.5"/></svg>
+          </button>
+          
+          <button class="listen-primary-play-btn" id="btn-tts-play" title="Play / Pause">
+            <svg id="tts-play-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="7 4 19 12 7 20 7 4"/></svg>
+            <svg id="tts-pause-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+          </button>
+
+          <button class="listen-ctrl-btn" id="btn-listen-next" title="Next Opinion">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"/></svg>
+          </button>
+
+          <button class="listen-ctrl-btn" id="btn-listen-replay" title="Replay from Beginning">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          </button>
+        </div>
+
+        <!-- Speeds & Auto-advance Bar -->
+        <div class="listen-settings-strip">
+          <div class="tts-speed-pills" id="tts-speed-pills">
+            <button class="speed-pill" data-speed="0.85">0.8x</button>
+            <button class="speed-pill active" data-speed="1.0">1.0x</button>
+            <button class="speed-pill" data-speed="1.25">1.2x</button>
+            <button class="speed-pill" data-speed="1.5">1.5x</button>
+          </div>
+          <label class="listen-autonext-label" title="Automatically proceed to the next opinion">
+            <input type="checkbox" id="chk-auto-advance" checked />
+            <span>Auto-advance</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Playlist Queue: List of Opinions on this Page -->
+      <div class="listen-queue-section" id="listen-queue-section">
+        <div class="listen-queue-header">
+          <span class="listen-queue-title">Page Opinions</span>
+          <span class="listen-queue-count" id="listen-queue-count">0 items</span>
+        </div>
+        <div class="listen-queue-list" id="listen-queue-list">
+          <!-- Dynamically filled with items -->
+        </div>
+      </div>
+
+      <!-- Custom Text Input Box (When custom tab is chosen) -->
+      <div class="listen-custom-input-card hidden" id="tts-custom-wrap">
+        <label class="listen-custom-label">Paste text or article excerpt to listen:</label>
+        <textarea id="tts-custom-text" class="listen-custom-textarea" placeholder="Paste or type any text to read aloud..."></textarea>
+      </div>
+
+      <!-- Action Button: Create Annotation from this content -->
+      <div class="listen-footer-action">
+        <button class="wm-btn-primary full" id="btn-annot-from-listen">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          Create Annotation on this Content
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ VOICE CLIPPING PANEL (FIGMA DESIGN) ═══════ -->
+  <section class="wm-panel" id="panel-voice">
+    <!-- Blue Hero Header & Waveform Section -->
+    <div class="voice-hero">
+      <div class="voice-top-nav">
+        <button class="voice-back-btn" data-panel="home" title="Back to Home">
+          <span class="v-bar long"></span>
+          <span class="v-bar short"></span>
+        </button>
+        <span class="voice-title">Voice Clipping</span>
+        <div class="voice-badge-icon">
+          <svg width="24" height="26" viewBox="0 0 31 34" fill="none">
+            <path d="M6.2 13.9V20.9M10.85 9.25V27.1M15.5 4.6V30.95M20.15 10V25.5M24.8 14.7V21.65" stroke="#101616" stroke-width="2.6" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Live Animated Waveform Area -->
+      <div class="voice-waveform-area" id="voice-waveform-area">
+        <canvas id="voice-wave-canvas" width="315" height="110"></canvas>
+      </div>
+
+      <!-- Timer & Record Pill Row -->
+      <div class="voice-ctrl-row">
+        <span class="voice-timer" id="voice-timer">0:00 secs</span>
+        <button class="voice-record-pill" id="btn-voice-record">
+          <span class="record-text" id="record-btn-text">record now</span>
+          <span class="record-dot" id="record-btn-dot"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Soft White Bottom Section (#F5F6FF with border-radius: 54px 0 0 0) -->
+    <div class="voice-body">
+      <!-- Action Bar -->
+      <div class="voice-actions-row">
+        <div class="voice-lang-pill">
+          <svg width="14" height="18" viewBox="0 0 15 19" fill="none">
+            <path d="M2.5 7C4.72 8.67 4.72 10.33 2.5 12M5 4.5C8.89 7.83 8.89 11.17 5 14.5M7.5 2C13.06 7 13.06 12 7.5 17" stroke="#303677" stroke-width="1.45" stroke-linecap="round"/>
+          </svg>
+          <select id="voice-lang-select" class="voice-select-inline" title="Language">
+            <option value="en-US" selected>English</option>
+            <option value="ar-SA">Arabic</option>
+          </select>
+        </div>
+
+        <div class="voice-icons-group">
+          <button class="voice-tool-btn" id="btn-voice-clear" title="Clear text">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#303677" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+          <button class="voice-tool-btn" id="btn-voice-star" title="Bookmark / Star">
+            <span class="star-icon" id="voice-star-icon">★</span>
+          </button>
+          <button class="voice-tool-btn" id="btn-voice-copy" title="Copy Transcript">
+            <svg width="16" height="17" viewBox="0 0 17 18" fill="none">
+              <path d="M12.75 2.2H7.65C6.71 2.2 5.95 2.96 5.95 3.9V10.7C5.95 11.64 6.71 12.4 7.65 12.4H12.75C13.69 12.4 14.45 11.64 14.45 10.7V3.9C14.45 2.96 13.69 2.2 12.75 2.2Z" stroke="#303677" stroke-width="1.45"/>
+              <path d="M3.4 5.6H1.7V14.1C1.7 15.23 2.27 15.8 3.4 15.8H11.05V14.1" stroke="#303677" stroke-width="1.45"/>
+            </svg>
+          </button>
+          <button class="voice-tool-btn" id="btn-voice-ai-summary" title="Summarize with AI">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#292D70" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Listening Indicator -->
+      <div class="voice-status-bar" id="voice-status-bar">
+        <span class="live-dot-pulse" id="voice-live-dot"></span>
+        <span class="voice-status-text" id="voice-status-text">Live Listening Active</span>
+      </div>
+
+      <!-- Microphone Permission Helper Banner (Shown if mic permission is needed) -->
+      <button class="voice-perm-banner hidden" id="btn-fix-mic-perm" title="Click to grant microphone access">
+        🎙️ Click here to grant microphone access to WebMind AI
+      </button>
+
+      <!-- Recorded Session Card (Appears after recording) -->
+      <div class="voice-session-card hidden" id="voice-session-card">
+        <div class="session-card-header">
+          <div class="session-title-wrap">
+            <span class="rec-badge">Rec clip</span>
+            <span class="session-card-title" id="session-card-title">Recorded clip (0:12s)</span>
+          </div>
+          <button class="session-card-close" id="btn-close-session" title="Close">&times;</button>
+        </div>
+        <div class="session-card-snippet" id="session-card-snippet"></div>
+        <div class="session-card-actions">
+          <button class="session-action-btn primary" id="btn-session-summary" title="Summarize clip with Gemini AI">
+            Summarize
+          </button>
+          <button class="session-action-btn" id="btn-session-save" title="Save and download clip transcript">
+            Save
+          </button>
+          <button class="session-action-btn" id="btn-session-share" title="Share clip">
+            Share
+          </button>
+        </div>
+        <div class="session-summary-result hidden" id="session-summary-result"></div>
+      </div>
+
+      <!-- Live Transcript Output -->
+      <div class="voice-transcript-box" id="voice-transcript-box">
+        <p class="voice-empty-hint" id="voice-empty-hint">
+          Listening and extracting live speech... Click <strong>Record</strong> to capture a clip to summarize or share.
+        </p>
+        <div class="voice-realtime-text" id="voice-realtime-text"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ CREATE ANNOTATION PANEL (HEART OF THE PROJECT) ═══════ -->
+  <section class="wm-panel" id="panel-create-annotation">
+    <div class="inner-header">
+      <button class="inner-back-btn" data-panel="home" title="Back to Home">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span class="inner-header-title">Create Annotation</span>
+    </div>
+
+    <div class="panel-body" style="overflow-y:auto; padding-bottom:24px;">
+      <!-- ONE UNIFIED STUDIO CARD -->
+      <div class="pro-studio-card" id="annot-studio-card">
+        <div class="pro-studio-toast hidden" id="pro-studio-toast">Clip trimmed</div>
+        <!-- Sleek Video Source Title Bar (Clean YouTube source on top, then Title & Channel) -->
+        <div class="pro-video-header" id="pro-video-header">
+          <div class="pro-video-badge" id="annot-source-badge">
+            <span id="annot-source-type-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="#EF4444"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"/><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" fill="#fff"/></svg></span>
+            <span id="annot-source-type-label">YouTube</span>
+          </div>
+          <div class="pro-video-info">
+            <div class="pro-video-title" id="annot-media-title" title="Current Video">Detecting media...</div>
+            <div class="pro-video-channel" id="annot-media-channel">Web</div>
+          </div>
+        </div>
+
+        <!-- Editable Source URL input bar (Allows custom URL for any page/content) -->
+        <div class="annot-url-field-wrap" id="annot-url-field-wrap">
+          <span class="annot-url-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></span>
+          <input type="text" id="annot-custom-url-input" class="annot-url-input" placeholder="Page or Content URL (https://...)" title="Annotation Source URL" />
+        </div>
+
+        <!-- Pro Video Editing Timeline (CapCut Style) -->
+        <div class="pro-timeline-container" id="annot-timeline-box">
+          <!-- Top Toolset Row (All 4 buttons neatly aligned without overflow) -->
+          <div class="pro-timeline-toolbar">
+            <button class="pro-tool-btn record" id="btn-pro-record" title="Record Voice Commentary">
+              <span class="pro-tool-dot"></span> Record
+            </button>
+            <button class="pro-tool-btn" id="btn-pro-script" title="View Captions / Script">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="13" y2="12"/></svg> Script
+            </button>
+            <button class="pro-tool-btn play" id="btn-annot-preview" title="Play Selected Clip">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play Clip
+            </button>
+            <button class="pro-tool-btn" id="btn-pro-split" title="Split / Trim Clip (90s Max)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg> Split
+            </button>
+          </div>
+
+          <!-- Video Preview Player Wrap -->
+          <div class="pro-video-preview-wrap" id="annot-video-preview-wrap">
+            <div class="pro-video-preview-container">
+              <iframe id="annot-youtube-iframe" class="annot-youtube-iframe" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+              <div id="annot-video-thumb-overlay" class="annot-video-thumb-overlay">
+                <img id="annot-video-thumb-img" src="" alt="Video thumbnail" />
+                <button type="button" class="annot-thumb-play-btn" id="btn-thumb-play" title="Play Video Clip">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="#ffffff"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Seamless Trim & Duration Controls (No Cards, No Emojis, No All-Caps, No Overflow) -->
+          <div class="pro-clip-deck" id="pro-clip-deck">
+            <div class="clip-times-row">
+              <div class="clip-deck-col">
+                <div class="clip-col-header">
+                  <span class="clip-col-label">Start time</span>
+                  <button type="button" class="clip-now-pill" id="btn-set-start-now" title="Set start time to current video position">Current</button>
+                </div>
+                <div class="clip-input-wrap">
+                  <input type="text" id="annot-input-start-time" class="clip-time-input" value="00:00" placeholder="00:00" maxlength="8" title="Start time (mm:ss)" />
+                </div>
+              </div>
+
+              <div class="clip-deck-col">
+                <div class="clip-col-header">
+                  <span class="clip-col-label">End time</span>
+                  <button type="button" class="clip-now-pill" id="btn-set-end-now" title="Set end time to current video position">Current</button>
+                </div>
+                <div class="clip-input-wrap">
+                  <input type="text" id="annot-input-end-time" class="clip-time-input" value="00:30" placeholder="00:30" maxlength="8" title="End time (mm:ss)" />
+                </div>
+              </div>
+            </div>
+
+            <div class="clip-duration-row">
+              <div class="clip-dur-info">
+                <span class="clip-dur-label">Duration:</span>
+                <span class="clip-dur-val" id="annot-clip-dur-val">30s</span>
+                <span class="clip-dur-max">(90s max)</span>
+              </div>
+              <div class="clip-presets-row">
+                <button type="button" class="clip-preset-pill" data-seconds="15">15s</button>
+                <button type="button" class="clip-preset-pill" data-seconds="30">30s</button>
+                <button type="button" class="clip-preset-pill" data-seconds="60">60s</button>
+                <button type="button" class="clip-preset-pill" data-seconds="90">90s max</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Time Ruler (00:00 | | | | 00:10 | | | | 00:20 ...) -->
+          <div class="pro-ruler-track" id="pro-ruler-track">
+            <div class="ruler-group">
+              <span class="ruler-num" id="ruler-t0">00:00</span>
+              <span class="ruler-tick"></span>
+              <span class="ruler-tick"></span>
+              <span class="ruler-tick"></span>
+              <span class="ruler-tick"></span>
+            </div>
+            <div class="ruler-group">
+              <span class="ruler-num" id="ruler-t1">00:10</span>
+              <span class="ruler-tick"></span>
+              <span class="ruler-tick"></span>
+              <span class="ruler-tick"></span>
+              <span class="ruler-tick"></span>
+            </div>
+            <div class="ruler-group">
+              <span class="ruler-num" id="ruler-t2">00:20</span>
+              <span class="ruler-tick"></span>
+              <span class="ruler-tick"></span>
+              <span class="ruler-tick"></span>
+            </div>
+          </div>
+
+          <!-- Visual Track: Filmstrip Background + Active Moving Blue Trim Box (CapCut Style) -->
+          <div class="pro-tracks-wrapper" id="pro-tracks-wrapper">
+            <!-- Full continuous background filmstrip & waveform -->
+            <div class="pro-track-bg" id="pro-track-bg">
+              <div class="filmstrip-row-bg" id="filmstrip-row">
+                <div class="film-frame"><img class="film-frame-img" src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=200&auto=format&fit=crop&q=80" alt="frame"></div>
+                <div class="film-frame"><img class="film-frame-img" src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=200&auto=format&fit=crop&q=80" alt="frame"></div>
+                <div class="film-frame"><img class="film-frame-img" src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=200&auto=format&fit=crop&q=80" alt="frame"></div>
+                <div class="film-frame"><img class="film-frame-img" src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=200&auto=format&fit=crop&q=80" alt="frame"></div>
+                <div class="film-frame"><img class="film-frame-img" src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=200&auto=format&fit=crop&q=80" alt="frame"></div>
+                <div class="film-frame"><img class="film-frame-img" src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=200&auto=format&fit=crop&q=80" alt="frame"></div>
+              </div>
+              <div class="audio-waveform-row-bg">
+                <canvas id="timeline-wave-canvas" width="340" height="26"></canvas>
+              </div>
+            </div>
+
+            <!-- Dimmed overlay masks outside selected range (CapCut style) -->
+            <div class="pro-dim-mask left" id="pro-dim-mask-left"></div>
+            <div class="pro-dim-mask right" id="pro-dim-mask-right"></div>
+
+            <!-- Active Selected Blue Trim Box (Moves and Resizes Smoothly) -->
+            <div class="pro-trim-box" id="pro-trim-box">
+              <div class="trim-handle left" id="trim-handle-left" title="Drag to trim start">
+                <div class="handle-bar"></div>
+              </div>
+              <div class="trim-drag-body" id="trim-drag-body" title="Drag to move clip"></div>
+              <div class="trim-handle right" id="trim-handle-right" title="Drag to trim end">
+                <div class="handle-bar"></div>
+              </div>
+            </div>
+
+            <!-- Live Playhead Needle -->
+            <div class="pro-playhead-needle" id="pro-playhead-needle"></div>
+          </div>
+
+          <!-- Bottom Footer Bar with Realtime Trimming Status & Scrub Slider -->
+          <div class="pro-scrubber-track-wrap" id="pro-scrubber-track-wrap">
+            <div class="pro-scrubber-track">
+              <div class="pro-scrubber-fill" id="pro-scrubber-fill">
+                <div class="pro-scrubber-play-fill" id="pro-scrubber-play-fill"></div>
+              </div>
+            </div>
+            <input type="range" id="annot-slider-start" class="pro-slider-ghost start" min="0" max="600" value="142" title="Trim start">
+            <input type="range" id="annot-slider-end" class="pro-slider-ghost end" min="0" max="600" value="176" title="Trim end">
+          </div>
+
+          <div class="pro-timeline-footer">
+            <span class="timeline-hint">Drag handles to trim clip (max 90s)</span>
+            <span class="annot-timer-range-pill" id="annot-time-tag">02:22 – 02:56</span>
+          </div>
+        </div>
+
+        <!-- Text snippet box (shown when annotating articles/pages) -->
+        <div class="annot-text-snippet-box hidden" id="annot-text-snippet-box">
+          <div class="snippet-quote-icon">“</div>
+          <div class="snippet-quote-text" id="annot-snippet-text">Select any text on the page to annotate it.</div>
+        </div>
+
+        <!-- Screenshot preview box (shown when camera screenshot taken) -->
+        <div class="annot-screenshot-box hidden" id="annot-screenshot-box">
+          <img id="annot-screenshot-img" src="" alt="Screenshot" />
+        </div>
+
+        <!-- Voice Commentary Studio Box (shown when annotating in voice mode) -->
+        <div class="annot-voice-studio-box hidden" id="annot-voice-studio-box" style="padding:14px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; margin-top:8px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <div style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:#1E3A8A;">
+              <span>🎙️ Voice Commentary</span>
+            </div>
+            <span id="annot-studio-voice-timer" style="font-size:11px; font-weight:600; color:#2563EB; background:#EFF6FF; padding:2px 8px; border-radius:12px;">0:00 secs</span>
+          </div>
+          <div style="height:36px; background:#fff; border:1px solid #E2E8F0; border-radius:8px; display:flex; align-items:center; justify-content:center; overflow:hidden; margin-bottom:10px;">
+            <canvas id="annot-studio-wave-canvas" width="310" height="34"></canvas>
+          </div>
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <button type="button" class="voice-record-pill" id="btn-annot-studio-record" style="font-size:11px; padding:6px 14px;">
+              <span id="annot-studio-record-text">Record Voice</span>
+              <span class="record-dot" id="annot-studio-record-dot"></span>
+            </button>
+            <span style="font-size:11px; color:#64748B;">Audio will attach to your annotation</span>
+          </div>
+        </div>
+
+        <!-- Code Snippet Box (shown when annotating code) -->
+        <div class="annot-code-snippet-box hidden" id="annot-code-snippet-box" style="margin-top:8px; background:#1E1E2E; border-radius:10px; overflow:hidden; border:1px solid #313244; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+          <div style="padding:8px 12px; background:#181825; display:flex; align-items:center; position:relative; font-size:12px; color:#A6ADC8;">
+            <!-- macOS Dots -->
+            <div style="display:flex; gap:6px; position:absolute; left:12px;">
+              <div style="width:10px; height:10px; border-radius:50%; background:#FF5F56;"></div>
+              <div style="width:10px; height:10px; border-radius:50%; background:#FFBD2E;"></div>
+              <div style="width:10px; height:10px; border-radius:50%; background:#27C93F;"></div>
+            </div>
+            <!-- Centered Title -->
+            <div style="flex:1; text-align:center; font-weight:600; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;" id="annot-code-lang-label">
+              snippet.js
+            </div>
+            <span id="annot-code-lines-label" style="position:absolute; right:12px; font-size:10px; color:#6C7086; display:none;"></span>
+          </div>
+          <pre style="margin:0; padding:12px 14px; font-family:'Fira Code', 'Courier New', Courier, monospace; font-size:12px; line-height:1.5; color:#CDD6F4; overflow-x:auto; max-height:160px; background:#1E1E2E;"><code id="annot-code-pre-code">// Code snippet to annotate</code></pre>
+        </div>
+      </div>
+
+      <!-- Modern Unified Comment Card (Zlata Dobrik style) -->
+      <div class="pro-comment-card" id="annot-editor-section">
+        <!-- Top Profile Row -->
+        <div class="comment-card-header">
+          <div class="comment-author-wrap">
+            <img class="comment-avatar" id="comment-avatar-img" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80" alt="avatar" />
+            <div class="comment-author-meta">
+              <span class="comment-author-name" id="comment-author-name">Researcher</span>
+              <span class="comment-author-handle" id="comment-author-handle">@user</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Large Spacious Text Input -->
+        <div class="comment-input-area">
+          <textarea id="annot-comment-input" class="comment-card-textarea" placeholder="Tell others about this moment..."></textarea>
+        </div>
+
+        <!-- Attached Media Strip (Chips for Image and Voice) -->
+        <div class="comment-attachments-strip hidden" id="comment-attachments-strip">
+          <!-- Image Preview Chip -->
+          <div class="attachment-chip image-chip hidden" id="chip-image-preview">
+            <img id="chip-img-src" src="" alt="attachment" />
+            <span class="chip-label" id="chip-img-label">Photo</span>
+            <button class="chip-redraw-btn hidden" id="btn-redraw-sketch" title="Redraw or edit sketch">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg> Edit
+            </button>
+            <button class="chip-remove-btn" id="btn-remove-chip-img" title="Remove photo">×</button>
+          </div>
+          <!-- Voice Preview Chip -->
+          <div class="attachment-chip voice-chip hidden" id="chip-voice-preview">
+            <span class="chip-voice-icon">🎙️</span>
+            <span class="chip-voice-text" id="chip-voice-dur">Voice note</span>
+            <button class="chip-voice-play-btn" id="btn-chip-play-voice" title="Play recording">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+            </button>
+            <button class="chip-remove-btn" id="btn-remove-chip-voice" title="Remove voice">×</button>
+            <audio id="chip-voice-audio" style="display:none;"></audio>
+          </div>
+        </div>
+
+        <!-- Hidden File Input for Custom Image Upload -->
+        <input type="file" id="annot-image-upload" accept="image/*" style="display: none;" />
+
+        <!-- Bottom Divider -->
+        <div class="comment-card-divider"></div>
+
+        <!-- Bottom Action Toolbar -->
+        <div class="comment-card-toolbar">
+          <div class="comment-tools-left">
+            <!-- Microphone (Audio recording) -->
+            <button class="comment-tool-icon-btn" id="btn-comment-voice" title="Record voice note">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            </button>
+
+            <!-- Video / Camera Snapshot (Capture video frame) -->
+            <button class="comment-tool-icon-btn" id="btn-comment-snapshot" title="Capture video frame">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 7l-7 5 7 5V7z"/>
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+              </svg>
+            </button>
+
+            <!-- Handwriting & Sketch -->
+            <button class="comment-tool-icon-btn" id="btn-comment-sketch" title="Handwriting & Sketch">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+                <path d="M2 2l7.586 7.586"/>
+              </svg>
+            </button>
+
+            <!-- Paperclip (Attach image/photo) -->
+            <button class="comment-tool-icon-btn" id="btn-comment-attach" title="Attach picture / image">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+              </svg>
+            </button>
+
+            <!-- More Options / Quotes -->
+            <button class="comment-tool-icon-btn" id="btn-comment-more" title="Insert timestamp quote">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="1.3"/>
+                <circle cx="12" cy="5" r="1.3"/>
+                <circle cx="12" cy="19" r="1.3"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Sleek Black Pill Publish Button -->
+          <button class="btn-publish-pill" id="btn-publish-annotation">
+            Publish
+          </button>
+        </div>
+
+        <!-- Hidden elements for backward JS compatibility -->
+        <span id="annot-voice-toggle-text" style="display:none;"></span>
+        <span id="annot-voice-duration" style="display:none;"></span>
+        <div id="annot-voice-preview-wrap" style="display:none;">
+          <audio id="annot-preview-audio"></audio>
+        </div>
+        <button id="btn-annot-voice-toggle" style="display:none;"></button>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           WORLD-CLASS PUBLISHED SOCIAL POST CARD
+      ══════════════════════════════════════════════════════════════ -->
+      <!-- ══════════════════════════════════════════════════════════════
+           PUBLISHED CONFIRMATION (Clean & Minimal - No Post in Extension)
+      ══════════════════════════════════════════════════════════════ -->
+      <div class="annot-published-success-card hidden" id="annot-published-success-card" style="padding: 32px 18px; text-align: center;">
+        <div style="width: 58px; height: 58px; border-radius: 50%; background: #EFF6FF; color: #2563EB; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; box-shadow: 0 4px 14px rgba(37,99,235,0.15);">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+        <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0 0 6px;">Published Successfully!</h3>
+        <p style="font-size: 13px; color: #64748B; margin: 0 0 24px; line-height: 1.5;">
+          Your research snippet has been published to your platform timeline and profile.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <a href="http://localhost:3000/home" target="_blank" class="annot-cta-action primary" id="btn-view-on-platform" style="text-decoration: none; justify-content: center; gap: 8px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            <span>View on Annotated Web</span>
+          </a>
+          <button type="button" class="annot-cta-action secondary" id="btn-create-another-annotation" style="justify-content: center;">
+            <span>+ Create Another Annotation</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ CONVERSATION & DISCUSSION PANEL ═══════ -->
+  <section class="wm-panel" id="panel-conversation">
+    <div class="inner-header">
+      <button class="inner-back-btn" data-panel="home"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <span class="inner-header-title">Annotation Discussions</span>
+    </div>
+    <div class="panel-body">
+      <div class="discussions-header-bar">
+        <span class="discussions-count-pill" id="discussions-count-pill">0 Annotations</span>
+        <button class="wm-ghost-btn" id="btn-new-annot-from-conv" data-panel="create-annotation">+ New Annotation</button>
+      </div>
+      <div class="discussions-feed" id="discussions-feed">
+        <div class="wm-empty-state">No annotations published yet. Click <strong>Create Annotation</strong> to start the discussion!</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ HANDWRITING & DRAWING OVERLAY PANEL ═══════ -->
+  <section class="wm-panel" id="panel-handwriting">
+    <div class="inner-header">
+      <button class="inner-back-btn" id="btn-sketch-back" data-panel="home" title="Close">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span class="inner-header-title">Handwriting & Sketch</span>
+    </div>
+    <div class="panel-body sketch-panel-body" style="padding:12px; display:flex; flex-direction:column; box-sizing:border-box;">
+      <!-- Main Toolbar -->
+      <div class="sketch-tools-bar">
+        <div class="sketch-color-picker-wrap" id="sketch-color-wrap" title="Choose Pen Color">
+          <input type="color" id="sketch-color" value="#2F3BF5" class="sketch-color-input">
+          <span class="sketch-color-swatch" id="sketch-color-swatch" style="background-color: #2F3BF5;"></span>
+        </div>
+        <button class="sketch-tool-btn active" id="btn-tool-pen" title="Pen (Smooth freehand)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg>
+        </button>
+        <button class="sketch-tool-btn" id="btn-tool-highlighter" title="Highlighter (Semi-transparent)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11-6 6v3h3l6-6"></path><path d="m22 12-4.6 4.6a2.78 2.78 0 0 1-3.9 0L4.4 7.5a2.78 2.78 0 0 1 0-3.9L9 8"></path></svg>
+        </button>
+        <button class="sketch-tool-btn" id="btn-tool-eraser" title="Eraser (Erase drawing strokes)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"></path><path d="M22 21H7"></path><path d="m5 11 9 9"></path></svg>
+        </button>
+        <button class="sketch-tool-btn" id="btn-sketch-capture" title="Capture Page Screenshot">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+        </button>
+        <div class="sketch-tools-divider"></div>
+        <button class="sketch-tool-btn" id="btn-sketch-undo" title="Undo (Ctrl+Z)" disabled>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        </button>
+        <button class="sketch-tool-btn" id="btn-sketch-redo" title="Redo (Ctrl+Y)" disabled>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
+        <button class="sketch-clear-btn" id="btn-clear-sketch" title="Clear canvas">Clear</button>
+      </div>
+
+      <!-- Secondary Sub-Bar: Stroke Width & Quick Color Swatches -->
+      <div class="sketch-options-bar">
+        <div class="sketch-size-selector" title="Stroke Width">
+          <button class="sketch-size-btn" data-size="thin" title="Thin stroke (2px)">
+            <span class="size-dot dot-sm"></span>
+          </button>
+          <button class="sketch-size-btn active" data-size="medium" title="Medium stroke (5px)">
+            <span class="size-dot dot-md"></span>
+          </button>
+          <button class="sketch-size-btn" data-size="thick" title="Thick stroke (10px)">
+            <span class="size-dot dot-lg"></span>
+          </button>
+        </div>
+        <div class="sketch-palette-dots">
+          <button class="palette-dot-btn active" data-color="#2F3BF5" style="background:#2F3BF5;" title="Royal Blue"></button>
+          <button class="palette-dot-btn" data-color="#EF4444" style="background:#EF4444;" title="Crimson Red"></button>
+          <button class="palette-dot-btn" data-color="#10B981" style="background:#10B981;" title="Emerald Green"></button>
+          <button class="palette-dot-btn" data-color="#F59E0B" style="background:#F59E0B;" title="Amber Yellow"></button>
+          <button class="palette-dot-btn" data-color="#1E293B" style="background:#1E293B;" title="Obsidian Slate"></button>
+        </div>
+      </div>
+
+      <!-- Canvas Wrap -->
+      <div class="sketch-canvas-wrap" id="sketch-canvas-wrap">
+        <canvas id="sketch-canvas"></canvas>
+        <!-- Empty State Hint -->
+        <div class="sketch-empty-hint" id="sketch-empty-hint">
+          <div class="sketch-empty-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+              <path d="M2 2l7.586 7.586"/>
+            </svg>
+          </div>
+          <p class="sketch-empty-text">Draw, highlight, or point something out.</p>
+          <button class="sketch-capture-pill-btn" id="btn-hint-capture-page" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+            Capture Page Screenshot
+          </button>
+        </div>
+        <!-- Clear Confirmation Overlay -->
+        <div class="sketch-confirm-overlay hidden" id="sketch-clear-confirm">
+          <div class="sketch-confirm-card">
+            <div class="sketch-confirm-title">Clear Workspace?</div>
+            <div class="sketch-confirm-desc">Choose what to clear from the canvas:</div>
+            <div class="sketch-confirm-actions column">
+              <button class="sketch-confirm-btn warning" id="btn-confirm-clear-strokes">Clear Drawing Strokes</button>
+              <button class="sketch-confirm-btn danger" id="btn-confirm-clear-all">Reset to Blank Canvas</button>
+              <button class="sketch-confirm-btn cancel" id="btn-cancel-clear">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Primary Action Button -->
+      <button class="wm-btn-primary full" id="btn-save-sketch-annot" style="margin-top:12px;" disabled>
+        Add to Annotation
+      </button>
+    </div>
+  </section>
+
+  <!-- ═══════ IMPORT PANEL ═══════ -->
+  <section class="wm-panel" id="panel-import">
+    <div class="inner-header">
+      <button class="inner-back-btn" data-panel="home"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <span class="inner-header-title">Import & Annotate</span>
+    </div>
+    <div class="panel-body">
+      <div class="settings-section">
+        <div class="settings-group-label">Paste Video or Content Link</div>
+        <input type="text" id="import-url-input" class="wm-text-input" placeholder="https://youtube.com/watch?v=...">
+        <button class="wm-btn-primary full" id="btn-import-url" style="margin-top:8px;">Open & Annotate Link</button>
+      </div>
+      <div class="settings-section" style="margin-top:12px;">
+        <div class="settings-group-label">Upload File / Image</div>
+        <input type="file" id="import-file-input" class="wm-text-input" accept="image/*,.pdf,.txt">
+        <button class="wm-ghost-btn full" id="btn-import-file" style="margin-top:8px;">Upload & Annotate</button>
+      </div>
+    </div>
+  </section>
+
+  <script src="popup.js"></script>
+</body>
+</html>

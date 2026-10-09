@@ -1,0 +1,598 @@
+/* Annotated - In-Page Overlay & Selection Tooltip Styles */
+/* Design: Pure White UI, Clean Square Tiles, Deep Dark Blue Icons (#1E3A8A) - Zero Rainbow Colors */
+
+:root {
+  --annot-primary-blue: #1E3A8A; /* Deep Dark Blue */
+  --annot-hover-blue: #1D4ED8;
+  --annot-bg-white: #FFFFFF;
+  --annot-surface-hover: #F8FAFC;
+  --annot-border: #E2E8F0;
+  --annot-border-darker: #CBD5E1;
+  --annot-text-main: #0F172A;
+  --annot-text-muted: #64748B;
+  --annot-shadow-sm: 0 4px 14px rgba(15, 23, 42, 0.08);
+  --annot-shadow-dropdown: 0 14px 34px -4px rgba(15, 23, 42, 0.14), 0 4px 12px rgba(15, 23, 42, 0.06);
+  --annot-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* ══════════════════════════════════════════════════════════
+   1. FLOATING ANNOTATE TRIGGER PILL
+══════════════════════════════════════════════════════════ */
+.annotated-selection-trigger {
+  position: absolute;
+  z-index: 2147483647;
+  background: var(--annot-bg-white);
+  border: 1px solid var(--annot-border);
+  border-radius: 4px !important; /* Square sharp design */
+  box-shadow: var(--annot-shadow-sm);
+  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  direction: ltr !important;
+  gap: 7px;
+  font-family: var(--annot-font);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--annot-primary-blue);
+  user-select: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  animation: annotFadePop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+.annotated-selection-trigger:hover {
+  background: var(--annot-surface-hover);
+  border-color: var(--annot-primary-blue);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(30, 58, 138, 0.12);
+}
+
+.annotated-trigger-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--annot-primary-blue);
+}
+
+.annotated-trigger-text {
+  color: var(--annot-text-main);
+  letter-spacing: -0.01em;
+}
+
+.annotated-trigger-arrow {
+  color: var(--annot-primary-blue);
+  font-size: 10px;
+  margin-left: 2px;
+  transition: transform 0.2s ease;
+}
+
+.annotated-selection-trigger.open .annotated-trigger-arrow {
+  transform: rotate(180deg);
+}
+
+/* ══════════════════════════════════════════════════════════
+   2. PURE WHITE DROPDOWN MENU (3x3 SQUARES, DEEP BLUE ICONS)
+══════════════════════════════════════════════════════════ */
+.annotated-dropdown-menu {
+  position: absolute;
+  z-index: 2147483647;
+  background: var(--annot-bg-white);
+  border: 1px solid var(--annot-border);
+  border-radius: 6px !important; /* Clean square menu */
+  box-shadow: var(--annot-shadow-dropdown);
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, 78px);
+  gap: 6px;
+  font-family: var(--annot-font);
+  user-select: none;
+  animation: annotDropdownIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+/* Individual Square Option Box */
+.annot-grid-square {
+  width: 78px;
+  height: 72px;
+  background: var(--annot-bg-white);
+  border: 1px solid var(--annot-border);
+  border-radius: 4px !important; /* Square item */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 4px;
+  box-sizing: border-box;
+  text-decoration: none;
+}
+
+.annot-grid-square:hover {
+  background: var(--annot-surface-hover);
+  border-color: var(--annot-primary-blue);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(30, 58, 138, 0.1);
+}
+
+.annot-grid-square:active {
+  transform: translateY(0);
+  background: #EFF6FF;
+}
+
+/* Pure Deep Dark Blue Icons */
+.annot-square-icon {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--annot-primary-blue);
+}
+
+.annot-square-icon svg {
+  width: 22px;
+  height: 22px;
+  stroke: var(--annot-primary-blue);
+  color: var(--annot-primary-blue);
+}
+
+.annot-square-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--annot-text-main);
+  text-align: center;
+  line-height: 1.1;
+}
+
+/* ══════════════════════════════════════════════════════════
+   3. CLEAN WHITE MODAL OVERLAY (Translation, Review, TTS)
+══════════════════════════════════════════════════════════ */
+.annotated-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2147483647;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--annot-font);
+  animation: annotFadePop 0.18s ease;
+  box-sizing: border-box;
+}
+
+.annotated-modal-card {
+  width: 90%;
+  max-width: 520px;
+  max-height: 85vh;
+  background: var(--annot-bg-white);
+  border: 1px solid var(--annot-border);
+  border-radius: 14px;
+  box-shadow: var(--annot-shadow-dropdown);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--annot-text-main);
+  box-sizing: border-box;
+}
+
+.annotated-modal-header {
+  padding: 14px 18px;
+  background: var(--annot-bg-white);
+  border-bottom: 1px solid var(--annot-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.annotated-modal-title {
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--annot-primary-blue);
+}
+
+.annotated-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--annot-text-muted);
+  font-size: 20px;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.annotated-modal-close:hover {
+  background: var(--annot-surface-hover);
+  color: var(--annot-text-main);
+}
+
+.annotated-modal-body {
+  padding: 18px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--annot-text-main);
+}
+
+.annotated-modal-footer {
+  padding: 12px 18px;
+  border-top: 1px solid var(--annot-border);
+  background: #FAFBFD;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.annotated-btn {
+  padding: 7px 15px;
+  border-radius: 8px;
+  border: 1px solid var(--annot-border);
+  background: var(--annot-bg-white);
+  color: var(--annot-text-main);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.annotated-btn:hover {
+  background: var(--annot-surface-hover);
+  border-color: var(--annot-border-darker);
+}
+
+.annotated-btn-primary {
+  background: var(--annot-primary-blue);
+  border-color: var(--annot-primary-blue);
+  color: #FFFFFF;
+}
+
+.annotated-btn-primary:hover {
+  background: var(--annot-hover-blue);
+  border-color: var(--annot-hover-blue);
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.25);
+}
+
+/* Clean Spinner */
+.annotated-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #E2E8F0;
+  border-radius: 50%;
+  border-top-color: var(--annot-primary-blue);
+  animation: annotSpin 0.7s linear infinite;
+}
+
+@keyframes annotSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes annotFadePop {
+  from { opacity: 0; transform: scale(0.96) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes annotDropdownIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ══════════════════════════════════════════════════════════
+   4. IN-PAGE FLOATING BUBBLE & QUICK POST COMPOSER
+══════════════════════════════════════════════════════════ */
+.annotated-floating-bubble {
+  position: absolute;
+  z-index: 2147483647;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px !important; /* Square instead of oval */
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
+  padding: 6px 12px 6px 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  animation: annotBubblePop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s, background 0.15s;
+  direction: ltr !important;
+  box-sizing: border-box;
+}
+
+.annotated-floating-bubble:hover {
+  transform: translateY(-1px);
+  border-color: #2563EB;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.18);
+  background: #F8FAFC;
+}
+
+.annotated-floating-bubble:active {
+  transform: translateY(0);
+}
+
+.annotated-bubble-logo-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px; /* Square icon */
+  background: #2563EB;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.annotated-bubble-logo-badge svg {
+  width: 12px;
+  height: 12px;
+  fill: #FFFFFF;
+  stroke: #FFFFFF;
+}
+
+.annotated-bubble-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0F172A;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+/* ── In-Page Card Composer (Exact 1:1 replica of pro-comment-card) ── */
+.annotated-inpage-composer-card {
+  position: absolute;
+  z-index: 2147483647;
+  width: 370px;
+  max-width: calc(100vw - 28px);
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 22px;
+  padding: 16px 18px 14px 18px;
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.14), 0 4px 14px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  animation: annotBubblePop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+  color: #0F172A;
+  direction: ltr !important;
+}
+
+.annotated-inpage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.annotated-inpage-author-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.annotated-inpage-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  background: #2563EB;
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.annotated-inpage-author-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.annotated-inpage-author-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0F172A;
+  line-height: 1.25;
+}
+
+.annotated-inpage-author-handle {
+  font-size: 11px;
+  color: #64748B;
+  font-weight: 500;
+}
+
+.annotated-inpage-dismiss-btn {
+  background: transparent;
+  border: none;
+  color: #94A3B8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  width: 24px;
+  height: 24px;
+  transition: all 0.15s ease;
+}
+
+.annotated-inpage-dismiss-btn:hover {
+  color: #0F172A;
+  background: #F1F5F9;
+}
+
+/* Clean Neutral Quote Box (No Blue Line or Blue Marks) */
+.annotated-inpage-quote-tag {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0; /* Clean neutral border all around, zero blue lines */
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.annotated-inpage-quote-mark {
+  color: #94A3B8; /* Neutral soft gray, NOT blue */
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.annotated-inpage-quote-snippet {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: italic;
+  flex: 1;
+  color: #334155;
+}
+
+/* Input area */
+.annotated-inpage-input-area {
+  width: 100%;
+}
+
+.annotated-inpage-textarea {
+  width: 100%;
+  min-height: 95px;
+  max-height: 220px;
+  border: none !important;
+  outline: none !important;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: #0F172A;
+  line-height: 1.55;
+  background: transparent !important;
+  padding: 4px 0 8px 0;
+  box-sizing: border-box;
+  box-shadow: none !important;
+}
+
+.annotated-inpage-textarea::placeholder {
+  color: #94A3B8;
+  font-size: 13.5px;
+}
+
+/* Thin card divider */
+.annotated-inpage-divider {
+  height: 1px;
+  background: #F1F5F9;
+  width: 100%;
+  margin: 6px 0 10px 0;
+}
+
+/* Bottom toolbar */
+.annotated-inpage-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.annotated-inpage-tools-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.annotated-inpage-tool-btn {
+  background: none;
+  border: none;
+  color: #64748B;
+  cursor: pointer;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.annotated-inpage-tool-btn:hover {
+  color: #0F172A;
+  background: #F1F5F9;
+}
+
+/* Sleek Blue Pill Publish Button */
+.annotated-inpage-publish-pill {
+  background: #2563EB !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  border-radius: 9999px !important;
+  padding: 8px 24px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 3px 12px rgba(37, 99, 235, 0.35) !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.annotated-inpage-publish-pill:hover {
+  background: #1D4ED8 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 16px rgba(37, 99, 235, 0.45) !important;
+}
+
+.annotated-inpage-publish-pill:active {
+  transform: translateY(0);
+}
+
+.annotated-inpage-publish-pill:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.annotated-inpage-success-banner {
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  color: #166534;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  animation: annotBubblePop 0.18s ease;
+}
+
+@keyframes annotBubblePop {
+  from { opacity: 0; transform: scale(0.92) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}

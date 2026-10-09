@@ -1,0 +1,41 @@
+{
+  "name": "annotated",
+  "version": "1.0.0",
+  "description": "إضافة كروم متطورة (Manifest V3) تعتمد على الذكاء الاصطناعي لتلخيص مقالات وصفحات الويب، الإجابة على الأسئلة، وتحليل النصوص المحددة مباشرة داخل أي صفحة.",
+  "main": "background.js",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "server": "node server/server.js",
+    "serve": "npx serve out -p 3000",
+    "build": "node build.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@google/genai": "^2.24.0",
+    "@gsap/react": "^2.1.2",
+    "@supabase/supabase-js": "^2.117.2",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@xenova/transformers": "^2.17.2",
+    "autoprefixer": "^10.6.1",
+    "clsx": "^2.1.1",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.5",
+    "esbuild": "^0.28.2",
+    "express": "^5.2.1",
+    "framer-motion": "^13.5.1",
+    "gsap": "^3.15.0",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^1.49.0",
+    "next": "^16.3.8",
+    "pg": "^8.23.1",
+    "postcss": "^8.5.28",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3"
+  }
+}
