@@ -1,4 +1,4 @@
-// WebMind AI - Popup Script
+// Annotated - Popup Script
 
 document.addEventListener('DOMContentLoaded', async () => {
   let activePageData = null;
@@ -2061,7 +2061,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         sessionText = voiceRealtimeText.innerText.trim();
       }
       if (!sessionText) {
-        sessionText = `Voice Recording - WebMind AI (${currentRecordedSessionDuration})\nDate: ${new Date().toLocaleString('en-US')}`;
+        sessionText = `Voice Recording - Annotated (${currentRecordedSessionDuration})\nDate: ${new Date().toLocaleString('en-US')}`;
       }
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -2094,7 +2094,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (btnSessionShare) {
     btnSessionShare.addEventListener('click', async () => {
       const sessionText = currentRecordedSessionTexts.join('\n') || allLiveTranscripts.slice(-6).join('\n') || (voiceRealtimeText ? voiceRealtimeText.innerText.trim() : '');
-      const shareTitle = `Audio Clip Transcript - WebMind AI (${currentRecordedSessionDuration})`;
+      const shareTitle = `Audio Clip Transcript - Annotated (${currentRecordedSessionDuration})`;
       const shareBody = `${shareTitle}\n-------------------------\n${sessionText || 'Audio clip saved successfully.'}`;
 
       if (navigator.share) {

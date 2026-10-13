@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "WebMind AI - Page Summarizer & Assistant",
+  "name": "Annotated",
   "version": "1.0.0",
   "description": "Smart AI extension for webpage annotations, video moment clipping, AI summaries, and community discussion.",
   "icons": {
@@ -9,7 +9,7 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "WebMind AI",
+    "default_title": "Annotated",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",

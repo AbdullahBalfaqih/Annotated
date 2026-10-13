@@ -1,4 +1,4 @@
-// WebMind AI - Content Script
+// Annotated - Content Script
 
 (function () {
   let tooltipEl = null;
