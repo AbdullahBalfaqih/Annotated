@@ -733,8 +733,9 @@ function detectLanguage(code, url = '') {
     if (ext === 'yaml' || ext === 'yml') return 'YAML';
   }
   const t = (code || '').trim().toLowerCase();
-  if (t.includes('def ') || (t.includes('import ') && t.includes(':')) || t.includes('__manifest__') || t.includes('self.')) return 'Python';
-  if (t.startsWith('{') || t.startsWith('"{') || t.startsWith('[{')) return 'JSON / Dict';
+  if (t.includes('__manifest__') || (t.includes('depends') && (t.includes('installable') || t.includes('version')))) return 'Python (Odoo Manifest)';
+  if (t.includes('def ') || (t.includes('import ') && t.includes(':')) || t.includes('self.')) return 'Python';
+  if (t.startsWith('{') || t.startsWith('[{')) return 'JSON / Dict';
   if (t.includes('const ') || t.includes('function') || t.includes('console.log') || t.includes('export default')) return 'JavaScript';
   if (t.includes('<html') || t.includes('<!doctype') || t.includes('<div') || t.includes('<script')) return 'HTML';
   if (t.includes('select ') && t.includes('from ')) return 'SQL';
@@ -743,8 +744,16 @@ function detectLanguage(code, url = '') {
 
 function isCodeContent(text, mediaUrl = '') {
   if (!text || typeof text !== 'string') return false;
-  const trimmed = text.trim();
+  let trimmed = text.trim();
   if (trimmed.startsWith('```')) return true;
+
+  // Unquote if wrapped in outer quotes or prefixed: "{ ... }" or "{ \n ...
+  if (trimmed.startsWith('"') || trimmed.startsWith("'") || trimmed.startsWith('“')) {
+    const candidate = trimmed.replace(/^["'“]/, '').replace(/["'”]$/, '').trim();
+    if (candidate.startsWith('{') || candidate.startsWith('[') || candidate.includes('\n') || candidate.includes('def ') || candidate.includes(':')) {
+      trimmed = candidate;
+    }
+  }
 
   // Check URL file extension if GitHub/source code link
   if (mediaUrl && /\.(py|js|jsx|ts|tsx|json|html|css|cpp|c|h|rs|go|php|rb|sql|yaml|yml|xml|sh)(\?.*)?$/i.test(mediaUrl)) {
@@ -755,7 +764,7 @@ function isCodeContent(text, mediaUrl = '') {
   }
 
   // Check JSON or Python dict syntax like "{ 'name': ... }"
-  if ((trimmed.startsWith('{') || trimmed.startsWith('"{') || trimmed.startsWith('[{')) && (trimmed.includes(':') || trimmed.includes('=>'))) {
+  if ((trimmed.startsWith('{') || trimmed.startsWith('[{')) && (trimmed.includes(':') || trimmed.includes('=>'))) {
     return true;
   }
 
@@ -768,7 +777,8 @@ function isCodeContent(text, mediaUrl = '') {
       /['"][a-zA-Z0-9_-]+['"]\s*:\s*/,
       /^\s*<(!DOCTYPE|html|div|xml|script|style|\?xml)/i,
       /^\s*(\/\*|\/\/|#|<!--)/m,
-      /^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER)\s+/im
+      /^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER)\s+/im,
+      /['"][a-zA-Z0-9_-]+['"]\s*,\s*$/m
     ];
 
     let matches = 0;
@@ -791,11 +801,12 @@ function PostCodeBlock({ content, mediaUrl, onOpenReviewModal }) {
   const [copied, setCopied] = useState(false);
 
   let code = (content || '').trim();
-  // Strip outer quotes if the entire code was pasted within double quotes like "{ ... }"
-  if ((code.startsWith('"{') && code.endsWith('}"')) || (code.startsWith('"{') && code.endsWith('"'))) {
-    code = code.substring(1, code.endsWith('"') ? code.length - 1 : code.length);
-  } else if (code.startsWith('"') && code.endsWith('"') && code.length > 30) {
-    code = code.slice(1, -1);
+  // Strip outer quotes if code is enclosed in quotes or prefixed
+  if (code.startsWith('"') || code.startsWith("'") || code.startsWith('“')) {
+    const candidate = code.replace(/^["'“]/, '').replace(/["'”]$/, '').trim();
+    if (candidate.startsWith('{') || candidate.startsWith('[') || candidate.includes('\n') || candidate.includes('def ') || candidate.includes(':')) {
+      code = candidate;
+    }
   }
 
   // Strip markdown code fences if present
@@ -3946,6 +3957,14 @@ export default function HomePage() {
 
                         const { quote, note } = parsePostQuoteAndNote(post.content);
 
+                        // Check if quote, note, or entire post content is code
+                        const isQuoteCode = quote ? isCodeContent(quote, post.media_url) : false;
+                        const isNoteCode = note ? isCodeContent(note, post.media_url) : false;
+                        const isPostContentCode = isCodeContent(post.content, post.media_url);
+                        const hasCode = isQuoteCode || isNoteCode || isPostContentCode;
+                        const codeBody = isQuoteCode ? quote : (isNoteCode ? note : (isPostContentCode ? post.content : null));
+                        const codeComment = isQuoteCode ? note : (isNoteCode ? quote : null);
+
                         // Look up source page info if present in user annotations
                         let sourceInfo = null;
                         if (userAnnotations && userAnnotations.length > 0) {
@@ -3970,12 +3989,16 @@ export default function HomePage() {
                         if (ytClip) {
                           return (
                             <div className="space-y-3">
-                              {(quote || note) && (
-                                <div className="text-[15px] font-medium text-[#202020] leading-relaxed">
-                                  {quote && <p className="font-semibold text-gray-900 border-l-2 border-blue-500 pl-3 mb-2">"{quote}"</p>}
-                                  {note && <p className="whitespace-pre-wrap">{note}</p>}
-                                  {post.hashtags && post.hashtags.length > 0 && <p className="mt-1 text-[#509FC6]">{post.hashtags.join(' ')}</p>}
-                                </div>
+                              {hasCode ? (
+                                <PostCodeBlock content={codeBody} mediaUrl={post.media_url} onOpenReviewModal={setCodeReviewModal} />
+                              ) : (
+                                (quote || note) && (
+                                  <div className="text-[15px] font-medium text-[#202020] leading-relaxed">
+                                    {quote && <p className="font-semibold text-gray-900 border-l-2 border-blue-500 pl-3 mb-2">"{quote}"</p>}
+                                    {note && <p className="whitespace-pre-wrap">{note}</p>}
+                                    {post.hashtags && post.hashtags.length > 0 && <p className="mt-1 text-[#509FC6]">{post.hashtags.join(' ')}</p>}
+                                  </div>
+                                )
                               )}
                               <YouTubeClipPlayer key={post.id} postId={post.id} clip={ytClip} mediaUrl={post.media_url} />
                             </div>
@@ -3986,43 +4009,54 @@ export default function HomePage() {
                         if (audioClip) {
                           return (
                             <div className="space-y-3">
-                              {(quote || note) && (
-                                <div className="text-[15px] font-medium text-[#202020] leading-relaxed">
-                                  {quote && <p className="font-semibold text-gray-900 border-l-2 border-blue-500 pl-3 mb-2">"{quote}"</p>}
-                                  {note && <p className="whitespace-pre-wrap">{note}</p>}
-                                  {post.hashtags && post.hashtags.length > 0 && <p className="mt-1 text-[#509FC6]">{post.hashtags.join(' ')}</p>}
-                                </div>
+                              {hasCode ? (
+                                <PostCodeBlock content={codeBody} mediaUrl={post.media_url} onOpenReviewModal={setCodeReviewModal} />
+                              ) : (
+                                (quote || note) && (
+                                  <div className="text-[15px] font-medium text-[#202020] leading-relaxed">
+                                    {quote && <p className="font-semibold text-gray-900 border-l-2 border-blue-500 pl-3 mb-2">"{quote}"</p>}
+                                    {note && <p className="whitespace-pre-wrap">{note}</p>}
+                                    {post.hashtags && post.hashtags.length > 0 && <p className="mt-1 text-[#509FC6]">{post.hashtags.join(' ')}</p>}
+                                  </div>
+                                )
                               )}
                               <AudioClipPlayer key={post.id} postId={post.id} clip={audioClip} mediaUrl={post.media_url} post={post} />
                             </div>
                           );
                         }
 
-                        // 3. Post with attached image (IMAGE POST) -> Blue Card with quote at top, comment on new line, and attached image below!
+                        // 3. Post with attached image (IMAGE POST)
                         if (isImage) {
                           return (
                             <div className="w-full rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-                              {/* Top Blue Part (Quote at top, Note below on new line, vibrant blue #3297EE like Image 1) */}
-                              {(quote || note || (post.hashtags && post.hashtags.length > 0)) && (
-                                <div className="bg-[#3297EE] p-5 text-white">
-                                  <div className="flex-1 min-w-0 space-y-3">
-                                    {quote && (
-                                      <p className="text-[15px] font-semibold leading-relaxed whitespace-pre-wrap tracking-normal">
-                                        "{quote}"
-                                      </p>
-                                    )}
-                                    {note && (
-                                      <p className="text-[14px] leading-relaxed text-white/95 font-medium whitespace-pre-wrap">
-                                        {note}
-                                      </p>
-                                    )}
-                                    {post.hashtags && post.hashtags.length > 0 && (
-                                      <p className="text-white/80 text-[13px] pt-0.5">
-                                        {post.hashtags.join(' ')}
-                                      </p>
-                                    )}
-                                  </div>
+                              {hasCode ? (
+                                <div className="p-3 bg-gray-50/70 border-b border-gray-100">
+                                  <PostCodeBlock content={codeBody} mediaUrl={post.media_url} onOpenReviewModal={setCodeReviewModal} />
+                                  {codeComment && <p className="text-[14px] text-gray-800 font-medium mt-2 whitespace-pre-wrap">{codeComment}</p>}
+                                  {post.hashtags && post.hashtags.length > 0 && <p className="text-[#509FC6] text-[13px] mt-1">{post.hashtags.join(' ')}</p>}
                                 </div>
+                              ) : (
+                                (quote || note || (post.hashtags && post.hashtags.length > 0)) && (
+                                  <div className="bg-[#3297EE] p-5 text-white">
+                                    <div className="flex-1 min-w-0 space-y-3">
+                                      {quote && (
+                                        <p className="text-[15px] font-semibold leading-relaxed whitespace-pre-wrap tracking-normal">
+                                          "{quote}"
+                                        </p>
+                                      )}
+                                      {note && (
+                                        <p className="text-[14px] leading-relaxed text-white/95 font-medium whitespace-pre-wrap">
+                                          {note}
+                                        </p>
+                                      )}
+                                      {post.hashtags && post.hashtags.length > 0 && (
+                                        <p className="text-white/80 text-[13px] pt-0.5">
+                                          {post.hashtags.join(' ')}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                )
                               )}
 
                               {/* Attached Visual Image */}
@@ -4080,33 +4114,36 @@ export default function HomePage() {
 
                           return (
                             <div className="w-full rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-                              {/* Top Blue Part (User's words) */}
-                              {(post.content || (post.hashtags && post.hashtags.length > 0)) && (
-                                <div className="bg-[#3297EE] p-5 text-white">
-                                  <div className="flex-1 min-w-0 space-y-3">
-                                    {quote ? (
-                                      <p className="text-[15px] font-semibold leading-relaxed whitespace-pre-wrap tracking-normal">
-                                        "{quote}"
-                                      </p>
-                                    ) : (
-                                      isCodeContent(post.content, post.media_url) ? (
-                                        <PostCodeBlock content={post.content} mediaUrl={post.media_url} onOpenReviewModal={setCodeReviewModal} />
+                              {hasCode ? (
+                                <div className="p-3 bg-gray-50/70 border-b border-gray-100">
+                                  <PostCodeBlock content={codeBody} mediaUrl={post.media_url} onOpenReviewModal={setCodeReviewModal} />
+                                  {codeComment && <p className="text-[14px] text-gray-800 font-medium mt-2 whitespace-pre-wrap">{codeComment}</p>}
+                                  {post.hashtags && post.hashtags.length > 0 && <p className="text-[#509FC6] text-[13px] mt-1">{post.hashtags.join(' ')}</p>}
+                                </div>
+                              ) : (
+                                (post.content || (post.hashtags && post.hashtags.length > 0)) && (
+                                  <div className="bg-[#3297EE] p-5 text-white">
+                                    <div className="flex-1 min-w-0 space-y-3">
+                                      {quote ? (
+                                        <p className="text-[15px] font-semibold leading-relaxed whitespace-pre-wrap tracking-normal">
+                                          "{quote}"
+                                        </p>
                                       ) : (
                                         <p className="text-[15px] font-medium leading-relaxed whitespace-pre-wrap">{post.content}</p>
-                                      )
-                                    )}
+                                      )}
 
-                                    {quote && note ? (
-                                      <p className="text-[14px] leading-relaxed text-white/95 font-medium whitespace-pre-wrap">
-                                        {note}
-                                      </p>
-                                    ) : null}
+                                      {quote && note ? (
+                                        <p className="text-[14px] leading-relaxed text-white/95 font-medium whitespace-pre-wrap">
+                                          {note}
+                                        </p>
+                                      ) : null}
 
-                                    {post.hashtags && post.hashtags.length > 0 && (
-                                      <p className="mt-2 text-white/90 text-[13px]">{post.hashtags.join(' ')}</p>
-                                    )}
+                                      {post.hashtags && post.hashtags.length > 0 && (
+                                        <p className="mt-2 text-white/90 text-[13px]">{post.hashtags.join(' ')}</p>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
+                                )
                               )}
                               
                               {/* Bottom White Part (Link footer) */}
@@ -4137,7 +4174,26 @@ export default function HomePage() {
                           );
                         }
 
-                        // 5. Plain Text or Quote-Only Post
+                        // 5. Code Post (No media attached or quote code) -> Traffic Lights PostCodeBlock!
+                        if (hasCode) {
+                          return (
+                            <div className="space-y-3">
+                              <PostCodeBlock content={codeBody} mediaUrl={post.media_url} onOpenReviewModal={setCodeReviewModal} />
+                              {codeComment && (
+                                <p className="text-[14px] font-medium text-gray-700 whitespace-pre-wrap">
+                                  {codeComment}
+                                </p>
+                              )}
+                              {post.hashtags && post.hashtags.length > 0 && (
+                                <p className="mt-1 text-[#509FC6]">
+                                  {post.hashtags.join(' ')}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        // 6. Text Quote-Only Post (NOT code) -> Show Blue Card
                         if (quote) {
                           return (
                             <div className="w-full rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
@@ -4162,13 +4218,10 @@ export default function HomePage() {
                           );
                         }
 
+                        // 7. Regular text post
                         return (
                           <div className="text-[15px] font-medium text-[#202020] leading-relaxed">
-                            {isCodeContent(post.content, post.media_url) ? (
-                              <PostCodeBlock content={post.content} mediaUrl={post.media_url} onOpenReviewModal={setCodeReviewModal} />
-                            ) : (
-                              <p className="whitespace-pre-wrap">{post.content}</p>
-                            )}
+                            <p className="whitespace-pre-wrap">{post.content}</p>
                             {post.hashtags && post.hashtags.length > 0 && (
                               <p className="mt-1 text-[#509FC6]">
                                 {post.hashtags.join(' ')}
