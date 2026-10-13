@@ -1542,141 +1542,216 @@ export default function HomePage() {
 
     const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
 
-    // 1. Verify Session with PostgreSQL Backend API
-    fetch('http://localhost:5000/api/auth/me', {
-      headers: authHeaders
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('Session invalid or expired');
-        return res.json();
-      })
-      .then(data => {
-        if (data.success && data.user) {
-          const fullUser = {
-            ...data.user,
-            notesCount: data.stats?.notesCount || 0,
-            annotationsCount: data.stats?.annotationsCount || 0,
-            workspacesCount: data.stats?.workspacesCount || 0,
-            followersCount: data.stats?.followersCount || 0,
-            followingCount: data.stats?.followingCount || 0
-          };
-          setCurrentUser(fullUser);
-          if (data.workspaces && data.workspaces.length > 0) {
-            setWorkspaces(data.workspaces);
-          }
-          localStorage.setItem('annotated_user', JSON.stringify(fullUser));
-          if (typeof window !== 'undefined') {
-            window.postMessage({ type: 'ANNOTATED_AUTH_SUCCESS', token: token || fullUser.id, user: fullUser }, '*');
-            if (window.chrome?.storage?.local) {
-              window.chrome.storage.local.set({ annotated_token: token || fullUser.id, annotated_user: fullUser }).catch(() => { });
+    // ══════════════════════════════════════════════════════════
+    // SUPABASE DIRECT DATA LOADER (PRODUCTION & OFFLINE-FIRST)
+    // Connects directly to Supabase PostgreSQL without localhost
+    // ══════════════════════════════════════════════════════════
+    const loadSupabaseData = async (activeSession) => {
+      try {
+        let userEmail = activeSession?.user?.email;
+        let userId = activeSession?.user?.id;
+        if (!userEmail) {
+          try {
+            const stored = localStorage.getItem('annotated_user');
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              userEmail = parsed.email;
+              userId = parsed.id;
             }
-          }
-          if (fullUser.onboarding_completed) {
-            setShowOnboarding(false);
-          }
-          setIsLoadingAuth(false);
+          } catch (_) {}
         }
-      })
-      .catch(() => {
-        setIsLoadingAuth(false);
-      });
 
-    // 2. Fetch Real Posts from PostgreSQL Database
-    fetch('http://localhost:5000/api/posts', {
-      headers: authHeaders
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.posts && data.posts.length > 0) {
-          const formatted = data.posts.map(p => ({
+        // 1. Fetch User Profile
+        let dbUser = null;
+        if (userEmail) {
+          const { data } = await supabase.from('users').select('*').eq('email', userEmail).maybeSingle();
+          dbUser = data;
+        }
+        if (!dbUser && userId) {
+          const { data } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
+          dbUser = data;
+        }
+
+        if (!dbUser && activeSession?.user) {
+          const meta = activeSession.user.user_metadata || {};
+          dbUser = {
+            id: activeSession.user.id,
+            email: activeSession.user.email,
+            name: meta.full_name || meta.name || 'Annotated User',
+            handle: (meta.user_name || activeSession.user.email?.split('@')[0] || 'user').toLowerCase().replace(/[^a-z0-9_]/g, ''),
+            avatar_url: meta.avatar_url || meta.picture || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(activeSession.user.email || 'User')}`,
+            banner_url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
+            headline: 'AI & Systems Knowledge Curator',
+            bio: '',
+            onboarding_completed: true,
+            reputation_score: 150,
+            verified: true
+          };
+        }
+
+        if (dbUser) {
+          const [annRes, wsRes, folRes, fingRes] = await Promise.all([
+            supabase.from('annotations').select('id', { count: 'exact', head: true }).eq('user_id', dbUser.id),
+            supabase.from('workspaces').select('*').eq('user_id', dbUser.id),
+            supabase.from('follows').select('id', { count: 'exact', head: true }).eq('followed_id', dbUser.id),
+            supabase.from('follows').select('id', { count: 'exact', head: true }).eq('follower_id', dbUser.id)
+          ]);
+
+          const fullUser = {
+            ...dbUser,
+            notesCount: annRes.count || 0,
+            annotationsCount: annRes.count || 0,
+            workspacesCount: (wsRes.data || []).length,
+            followersCount: folRes.count || 0,
+            followingCount: fingRes.count || 0
+          };
+
+          setCurrentUser(fullUser);
+          if (wsRes.data && wsRes.data.length > 0) setWorkspaces(wsRes.data);
+          localStorage.setItem('annotated_user', JSON.stringify(fullUser));
+          if (fullUser.onboarding_completed) setShowOnboarding(false);
+        }
+        setIsLoadingAuth(false);
+
+        // 2. Fetch Posts with Users & Comments
+        const { data: rawPosts, error: pErr } = await supabase
+          .from('posts')
+          .select(`
+            *,
+            users (
+              name,
+              handle,
+              avatar_url
+            ),
+            comments (
+              id,
+              content,
+              created_at,
+              user_id,
+              users (
+                name,
+                handle,
+                avatar_url
+              )
+            )
+          `)
+          .order('created_at', { ascending: false });
+
+        if (rawPosts && rawPosts.length > 0) {
+          const formatted = rawPosts.map(p => ({
             id: p.id,
-            author_name: p.author_name || 'Annotated Researcher',
-            author_handle: p.author_handle || 'researcher',
-            author_avatar: p.author_avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(p.author_name || 'User')}`,
+            author_name: p.users?.name || 'Annotated Researcher',
+            author_handle: p.users?.handle || 'researcher',
+            author_avatar: p.users?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(p.users?.name || 'User')}`,
             time: new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             content: p.content,
-            hashtags: Array.isArray(p.hashtags) ? p.hashtags : JSON.parse(p.hashtags || '[]'),
+            hashtags: Array.isArray(p.hashtags) ? p.hashtags : (typeof p.hashtags === 'string' ? JSON.parse(p.hashtags || '[]') : []),
             media_url: p.media_url,
             media_type: p.media_type,
             thumbnail_url: p.thumbnail_url || null,
             likes_count: p.likes_count || 0,
-            is_liked: Boolean(p.is_liked),
-            comments: Array.isArray(p.comments) ? p.comments : [],
-            comments_count: p.comments_count != null ? p.comments_count : (Array.isArray(p.comments) ? p.comments.length : 0)
+            is_liked: false,
+            comments: (p.comments || []).map(c => ({
+              id: c.id,
+              content: c.content,
+              created_at: c.created_at,
+              user_name: c.users?.name || 'User',
+              user_handle: c.users?.handle || 'user',
+              user_avatar: c.users?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=user`
+            })),
+            comments_count: p.comments_count != null ? p.comments_count : (p.comments?.length || 0)
           }));
           setPosts(formatted);
         }
-      })
-      .catch(() => { });
 
-    // 3. Fetch Trending Research Tags from PostgreSQL
-    fetch('http://localhost:5000/api/tags/trending')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.tags) {
-          setTrendingTags(data.tags);
-        }
-      })
-      .catch(() => { });
+        // 3. Fetch Trending Tags
+        const { data: tagsData } = await supabase.from('tags').select('*').order('usage_count', { ascending: false }).limit(10);
+        if (tagsData && tagsData.length > 0) setTrendingTags(tagsData);
 
-    // 4. Fetch Real Suggested Users from PostgreSQL
-    fetch('http://localhost:5000/api/users/suggested', {
-      headers: authHeaders
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.users) {
-          setSuggestedUsers(data.users);
-        }
-      })
-      .catch(() => { });
+        // 4. Fetch Suggested Users
+        let uQuery = supabase.from('users').select('*').limit(5);
+        if (dbUser?.id) uQuery = uQuery.neq('id', dbUser.id);
+        const { data: sUsers } = await uQuery;
+        if (sUsers && sUsers.length > 0) setSuggestedUsers(sUsers);
 
-    // 5. Fetch Real Activities from PostgreSQL
-    fetch('http://localhost:5000/api/activities', {
-      headers: authHeaders
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.activities) {
-          setActivities(data.activities);
-        }
-      })
-      .catch(() => { });
+        // 5. Fetch Activities
+        const { data: acts } = await supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(10);
+        if (acts && acts.length > 0) setActivities(acts);
 
-    // 6. Fetch User Followers & Following from PostgreSQL
-    fetch('http://localhost:5000/api/user/followers', {
-      headers: authHeaders
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && Array.isArray(data.followers)) {
-          setFollowersList(data.followers);
-        }
-      })
-      .catch(() => { });
+        // 6. Fetch Annotations
+        let annQuery = supabase.from('annotations').select('*').order('created_at', { ascending: false }).limit(20);
+        if (dbUser?.id) annQuery = annQuery.eq('user_id', dbUser.id);
+        const { data: annots } = await annQuery;
+        if (annots && annots.length > 0) setUserAnnotations(annots);
 
-    fetch('http://localhost:5000/api/user/following', {
-      headers: authHeaders
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && Array.isArray(data.following)) {
-          setFollowingList(data.following);
-        }
-      })
-      .catch(() => { });
+      } catch (err) {
+        console.error('Error loading Supabase direct data:', err);
+        setIsLoadingAuth(false);
+      }
+    };
 
-    // 7. Fetch Real User Annotations from PostgreSQL
-    fetch('http://localhost:5000/api/annotations', {
-      headers: authHeaders
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && Array.isArray(data.annotations)) {
-          setUserAnnotations(data.annotations);
-        }
-      })
-      .catch(() => { });
+    // Attempt local API if on localhost, otherwise connect to Supabase
+    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+      fetch('http://localhost:5000/api/auth/me', { headers: authHeaders })
+        .then(res => {
+          if (!res.ok) throw new Error('Local server offline');
+          return res.json();
+        })
+        .then(data => {
+          if (data.success && data.user) {
+            const fullUser = {
+              ...data.user,
+              notesCount: data.stats?.notesCount || 0,
+              annotationsCount: data.stats?.annotationsCount || 0,
+              workspacesCount: data.stats?.workspacesCount || 0,
+              followersCount: data.stats?.followersCount || 0,
+              followingCount: data.stats?.followingCount || 0
+            };
+            setCurrentUser(fullUser);
+            if (data.workspaces && data.workspaces.length > 0) setWorkspaces(data.workspaces);
+            localStorage.setItem('annotated_user', JSON.stringify(fullUser));
+            if (fullUser.onboarding_completed) setShowOnboarding(false);
+            setIsLoadingAuth(false);
+          } else {
+            supabase.auth.getSession().then(({ data: { session } }) => loadSupabaseData(session));
+          }
+        })
+        .catch(() => {
+          supabase.auth.getSession().then(({ data: { session } }) => loadSupabaseData(session));
+        });
+
+      fetch('http://localhost:5000/api/posts', { headers: authHeaders })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.posts && data.posts.length > 0) {
+            const formatted = data.posts.map(p => ({
+              id: p.id,
+              author_name: p.author_name || 'Annotated Researcher',
+              author_handle: p.author_handle || 'researcher',
+              author_avatar: p.author_avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(p.author_name || 'User')}`,
+              time: new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              content: p.content,
+              hashtags: Array.isArray(p.hashtags) ? p.hashtags : JSON.parse(p.hashtags || '[]'),
+              media_url: p.media_url,
+              media_type: p.media_type,
+              thumbnail_url: p.thumbnail_url || null,
+              likes_count: p.likes_count || 0,
+              is_liked: Boolean(p.is_liked),
+              comments: Array.isArray(p.comments) ? p.comments : [],
+              comments_count: p.comments_count != null ? p.comments_count : (Array.isArray(p.comments) ? p.comments.length : 0)
+            }));
+            setPosts(formatted);
+          } else {
+            supabase.auth.getSession().then(({ data: { session } }) => loadSupabaseData(session));
+          }
+        })
+        .catch(() => {});
+    } else {
+      // Production (Vercel): Load directly from Supabase Cloud
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        loadSupabaseData(session);
+      });
+    }
 
     // Check Chrome Extension bridge
     if (typeof window !== 'undefined') {
@@ -1919,12 +1994,23 @@ export default function HomePage() {
 
     const token = localStorage.getItem('annotated_token');
     if (token) {
-      try {
-        await fetch(`http://localhost:5000/api/posts/${postId}/like`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-      } catch (_) { }
+      if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+        try {
+          await fetch(`http://localhost:5000/api/posts/${postId}/like`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+        } catch (_) { }
+      } else if (currentUser?.id && !postId.toString().startsWith('local-')) {
+        try {
+          const { data: existingLike } = await supabase.from('likes').select('id').eq('post_id', postId).eq('user_id', currentUser.id).maybeSingle();
+          if (existingLike) {
+            await supabase.from('likes').delete().eq('id', existingLike.id);
+          } else {
+            await supabase.from('likes').insert({ post_id: postId, user_id: currentUser.id });
+          }
+        } catch (_) {}
+      }
     }
   };
 
@@ -1948,12 +2034,17 @@ export default function HomePage() {
     setPostToDelete(null);
     const token = localStorage.getItem('annotated_token');
     if (token && !postId.toString().startsWith('local-')) {
+      if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+        try {
+          await fetch(`http://localhost:5000/api/posts/${postId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+        } catch (_) { }
+      }
       try {
-        await fetch(`http://localhost:5000/api/posts/${postId}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-      } catch (_) { }
+        await supabase.from('posts').delete().eq('id', postId);
+      } catch (_) {}
     }
   };
 
@@ -2013,24 +2104,51 @@ export default function HomePage() {
     setMediaUrl(null);
 
     if (token) {
-      try {
-        const res = await fetch('http://localhost:5000/api/posts', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
+      let saved = false;
+      if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+        try {
+          const res = await fetch('http://localhost:5000/api/posts', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              content: newPostItem.content,
+              hashtags: newPostItem.hashtags
+            })
+          });
+          const data = await res.json();
+          if (data.success && data.post) {
+            setPosts(prev => prev.map(p => p.id === newPostItem.id ? { ...p, id: data.post.id } : p));
+            saved = true;
+          }
+        } catch (_) { }
+      }
+
+      if (!saved && currentUser?.id) {
+        try {
+          const { data: dbPost } = await supabase.from('posts').insert({
+            user_id: currentUser.id,
             content: newPostItem.content,
-            hashtags: newPostItem.hashtags
-          })
-        });
-        const data = await res.json();
-        if (data.success && data.post) {
-          // Update temp id with real backend id
-          setPosts(prev => prev.map(p => p.id === newPostItem.id ? { ...p, id: data.post.id } : p));
+            hashtags: newPostItem.hashtags,
+            media_url: newPostItem.media_url,
+            media_type: newPostItem.media_url ? 'image' : 'none'
+          }).select('*, users(name, handle, avatar_url)').single();
+
+          if (dbPost) {
+            setPosts(prev => prev.map(p => p.id === newPostItem.id ? {
+              ...p,
+              id: dbPost.id,
+              author_name: dbPost.users?.name || currentUser.name,
+              author_handle: dbPost.users?.handle || currentUser.handle,
+              author_avatar: dbPost.users?.avatar_url || currentUser.avatar_url
+            } : p));
+          }
+        } catch (sErr) {
+          console.error('Supabase post creation error:', sErr);
         }
-      } catch (_) { }
+      }
     }
 
     setIsPosting(false);
@@ -2109,29 +2227,64 @@ export default function HomePage() {
     }));
 
     if (token) {
-      try {
-        const res = await fetch(`http://localhost:5000/api/posts/${postId}/comments`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ content: text })
-        });
-        const data = await res.json();
-        if (data.success && data.comment) {
-          setPosts(prev => prev.map(p => {
-            if (p.id === postId) {
-              return {
-                ...p,
-                comments: (p.comments || []).map(c => c.id === tempCommentId ? data.comment : c)
-              };
-            }
-            return p;
-          }));
+      let saved = false;
+      if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+        try {
+          const res = await fetch(`http://localhost:5000/api/posts/${postId}/comments`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ content: text })
+          });
+          const data = await res.json();
+          if (data.success && data.comment) {
+            setPosts(prev => prev.map(p => {
+              if (p.id === postId) {
+                return {
+                  ...p,
+                  comments: (p.comments || []).map(c => c.id === tempCommentId ? data.comment : c)
+                };
+              }
+              return p;
+            }));
+            saved = true;
+          }
+        } catch (err) {
+          console.error('Failed to post comment to local API:', err);
         }
-      } catch (err) {
-        console.error('Failed to post comment:', err);
+      }
+
+      if (!saved && currentUser?.id) {
+        try {
+          const { data: dbComment } = await supabase.from('comments').insert({
+            post_id: postId,
+            user_id: currentUser.id,
+            content: text
+          }).select('*, users(name, handle, avatar_url)').single();
+
+          if (dbComment) {
+            setPosts(prev => prev.map(p => {
+              if (p.id === postId) {
+                return {
+                  ...p,
+                  comments: (p.comments || []).map(c => c.id === tempCommentId ? {
+                    id: dbComment.id,
+                    content: dbComment.content,
+                    created_at: dbComment.created_at,
+                    user_name: dbComment.users?.name || currentUser.name,
+                    user_handle: dbComment.users?.handle || currentUser.handle,
+                    user_avatar: dbComment.users?.avatar_url || currentUser.avatar_url
+                  } : c)
+                };
+              }
+              return p;
+            }));
+          }
+        } catch (cErr) {
+          console.error('Supabase direct comment insert error:', cErr);
+        }
       }
     }
   };
