@@ -2917,12 +2917,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tab = await getActiveWebTab();
         if (!tab || !tab.id || !tab.url) return;
 
-        // CRITICAL: ONLY run video watcher on dedicated video platforms! Never hijack normal websites.
-        if (!isDedicatedVideoPlatform(tab.url)) return;
+        // Run video watcher on dedicated video platforms OR when web video is detected
+        const isMediaPlatform = isDedicatedVideoPlatform(tab.url);
+        const isWebVideoActive = currentAnnotationContext.type === 'video' || currentAnnotationContext.hasVideo;
+        if (!isMediaPlatform && !isWebVideoActive) return;
 
         const isYT = !!(tab.url && (tab.url.includes('youtube.com') || tab.url.includes('youtu.be')));
         safeTabSendMessage(tab.id, { action: 'GET_VIDEO_INFO' }, (resp) => {
           if (!resp && !isYT) return;
+          if (!resp?.hasVideo && !resp?.hasAudio && !isYT) return;
           const isAudio = !isYT && (resp?.hasAudio || resp?.mediaType === 'audio' || (!resp?.hasVideo && currentAnnotationContext.type === 'audio'));
           const info = resp || {
             hasVideo: !isAudio,
@@ -3184,8 +3187,46 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (snippetTextEl) snippetTextEl.innerText = currentAnnotationContext.selectedText;
         }
 
-        // Safe query tab for any currently highlighted text on the page
+        // Query tab for video info, media, or highlighted text
         safeTabSendMessage(tab.id, { action: 'GET_VIDEO_INFO' }, (resp) => {
+          if (!isVoiceMode && !isCodeMode && !isCameraMode && resp && resp.hasVideo) {
+            // 🎬 VIDEO DETECTED ON ANY WEBPAGE (BBC, CNN, news site, blog, etc.)!
+            currentAnnotationContext.type = 'video';
+            currentAnnotationContext.hasVideo = true;
+
+            const realTitle = (resp.title && resp.title !== 'Video Content') ? resp.title : pageTitle;
+            const realChannel = resp.channel || platform.name;
+            const cur = Math.max(0, Math.floor(resp.currentTime || 0));
+            const dur = Math.max(cur + 10, Math.floor(resp.duration || 180));
+
+            currentAnnotationContext.mediaTitle = realTitle;
+            currentAnnotationContext.duration = dur;
+            currentAnnotationContext.startTime = cur;
+            currentAnnotationContext.endTime = Math.min(dur, cur + Math.min(30, MAX_CLIP_DURATION));
+            currentAnnotationContext.thumbnailUrl = resp.thumbnailUrl || resp.frameSnapshot || '';
+            lastDetectedVideoId = resp.videoId || null;
+            lastDetectedTitle = realTitle;
+
+            if (mediaTitleEl) {
+              mediaTitleEl.innerText = realTitle;
+              mediaTitleEl.title = realTitle;
+            }
+            if (mediaChannelEl) mediaChannelEl.innerText = realChannel;
+
+            // Show Timeline Trimmer!
+            if (timelineBox) timelineBox.classList.remove('hidden');
+
+            // Badge: e.g. "Bbc Video" or "Web Video"
+            if (sourceBadgeLabel) sourceBadgeLabel.innerText = `${platform.name} Video`;
+            if (sourceBadgeIcon) {
+              sourceBadgeIcon.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>';
+            }
+
+            updateAnnotMediaDisplay(resp);
+            updateAnnotTimeDisplay();
+            updateRulerTicks(dur);
+          }
+
           const textToQuote = (resp && resp.selectedText) || currentAnnotationContext.selectedText;
           const isCode = (resp && resp.isCode) || currentAnnotationContext.isCode;
           if (textToQuote && textToQuote.trim()) {
@@ -3201,11 +3242,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                currentAnnotationContext.isCode = false;
                if (codeSnippetBox) codeSnippetBox.classList.add('hidden');
-               if (snippetBox) snippetBox.classList.remove('hidden');
-               if (snippetTextEl) snippetTextEl.innerText = textToQuote.trim();
+               if (snippetBox) {
+                 snippetBox.classList.remove('hidden');
+                 if (snippetTextEl) snippetTextEl.innerText = textToQuote.trim();
+               }
             }
           } else {
-            if (!platform.isDedicatedVideo && snippetBox) {
+            if (!platform.isDedicatedVideo && !currentAnnotationContext.hasVideo && snippetBox) {
               if (codeSnippetBox) codeSnippetBox.classList.add('hidden');
               snippetBox.classList.remove('hidden');
               if (snippetTextEl) {
@@ -3551,7 +3594,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Camera / Video Snapshot (Take current frame snapshot from video)
+  // Camera / Video Snapshot (Take current frame snapshot from video & activate timeline if available)
   const btnCommentSnapshot = document.getElementById('btn-comment-snapshot');
   if (btnCommentSnapshot) {
     btnCommentSnapshot.addEventListener('click', async () => {
@@ -3561,6 +3604,23 @@ document.addEventListener('DOMContentLoaded', async () => {
           safeTabSendMessage(tab.id, { action: 'GET_VIDEO_INFO' }, (resp) => {
             const frameUrl = (resp && (resp.frameSnapshot || resp.thumbnailUrl)) || DEFAULT_FRAME_THUMB;
             attachImageToComment(frameUrl);
+
+            // If a video exists on the page and the timeline was hidden, open video clipping mode!
+            const timelineBox = document.getElementById('annot-timeline-box');
+            if (resp && resp.hasVideo && timelineBox) {
+              timelineBox.classList.remove('hidden');
+              currentAnnotationContext.type = 'video';
+              currentAnnotationContext.hasVideo = true;
+              const cur = Math.max(0, Math.floor(resp.currentTime || 0));
+              const dur = Math.max(cur + 10, Math.floor(resp.duration || 180));
+              currentAnnotationContext.duration = dur;
+              currentAnnotationContext.startTime = cur;
+              currentAnnotationContext.endTime = Math.min(dur, cur + Math.min(30, MAX_CLIP_DURATION));
+              updateAnnotMediaDisplay(resp);
+              updateAnnotTimeDisplay();
+              updateRulerTicks(dur);
+            }
+
             showStudioToast('Video frame attached');
           });
           return;

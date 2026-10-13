@@ -92,10 +92,14 @@ async function buildNextExtension() {
   fs.cpSync(outDir, distDir, { recursive: true });
   console.log('✨ Clean synced out/ to dist/');
 
-  // Also sync out/content.js and out/background.js to workspace root so root extension works
-  fs.copyFileSync(path.join(outDir, 'content.js'), path.join(__dirname, 'content.js'));
-  fs.copyFileSync(path.join(outDir, 'background.js'), path.join(__dirname, 'background.js'));
-  console.log('✨ Synced content.js and background.js to root directory');
+  // Also sync extension files to workspace root so root extension works
+  ['content.js', 'background.js', 'popup.js', 'popup.html', 'popup.css', 'content.css', 'manifest.json'].forEach(file => {
+    const p = path.join(outDir, file);
+    if (fs.existsSync(p)) {
+      fs.copyFileSync(p, path.join(__dirname, file));
+    }
+  });
+  console.log('✨ Synced extension scripts, popup, and manifest to root directory');
 
   console.log('\n🎉 SUCCESS! Next.js Chrome Extension is ready in folder: out/ (and dist/ & root)');
   console.log('👉 Load unpacked extension in Chrome from root, out/, or dist/');

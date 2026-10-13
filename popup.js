@@ -262,9 +262,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   initCardsTrack();
   initHeroHeadlineSlider();
   loadAnnotatedUser();
+  initProfileSignOut();
   loadSettings().catch(() => {});
   checkActiveTab().catch(() => {});
   loadHistory().catch(() => {});
+
 
   const initialActivePanel = document.querySelector('.wm-panel.active');
   if (initialActivePanel && initialActivePanel.id === 'panel-voice' && typeof initVoicePanel === 'function') {
@@ -416,14 +418,63 @@ document.addEventListener('DOMContentLoaded', async () => {
       const applyUserData = (user) => {
         if (!user) return;
         const realName = user.name || user.handle || 'Researcher';
+        // Hero greeting (no green dot)
         if (greetingEl) {
-          greetingEl.innerHTML = `Hello, <strong>${realName}</strong> <span style="display:inline-block;width:8px;height:8px;background:#22c55e;border-radius:50%;margin-left:4px;box-shadow:0 0 6px rgba(34,197,94,0.6);" title="Synced with Annotated Database"></span>`;
+          greetingEl.innerHTML = `Hello, <strong>${realName}</strong>`;
         }
         if (authorNameEl) authorNameEl.textContent = realName;
         if (authorHandleEl) authorHandleEl.textContent = `@${user.handle || 'researcher'}`;
         if (authorAvatarEl && user.avatar_url) authorAvatarEl.src = user.avatar_url;
         if (publishedAuthorEl) publishedAuthorEl.textContent = realName;
+
+        // ── Profile Panel ──
+        const profileName = document.getElementById('profile-name');
+        const profileHandle = document.getElementById('profile-handle');
+        const profileAvatar = document.getElementById('profile-avatar-img');
+        const profileBio = document.getElementById('profile-bio');
+        const profileJoined = document.getElementById('profile-joined');
+        const profileLocation = document.getElementById('profile-location');
+        const profileLocationText = document.getElementById('profile-location-text');
+        const profileWebsiteWrap = document.getElementById('profile-website-wrap');
+        const profileWebsite = document.getElementById('profile-website');
+        const profileViewBtn = document.getElementById('profile-view-btn');
+        const profileFollowing = document.getElementById('profile-following-count');
+        const profileFollowers = document.getElementById('profile-followers-count');
+        const profileAnnotations = document.getElementById('profile-annotations-count');
+
+        if (profileName) profileName.textContent = realName;
+        if (profileHandle) profileHandle.textContent = `@${user.handle || 'researcher'}`;
+        if (profileAvatar) {
+          profileAvatar.src = user.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(realName)}`;
+        }
+        if (profileBio && user.bio) profileBio.textContent = user.bio;
+        if (profileViewBtn && user.handle) profileViewBtn.href = `http://localhost:3000/${user.handle}`;
+
+        // Location
+        if (profileLocation && profileLocationText && user.location) {
+          profileLocationText.textContent = user.location;
+          profileLocation.style.display = 'flex';
+        }
+        // Website
+        if (profileWebsiteWrap && profileWebsite && user.website) {
+          profileWebsite.href = user.website;
+          profileWebsite.textContent = user.website.replace(/^https?:\/\//, '');
+          profileWebsiteWrap.style.display = 'flex';
+        }
+        // Joined date
+        if (profileJoined) {
+          const joinedDate = user.created_at ? new Date(user.created_at) : null;
+          if (joinedDate) {
+            profileJoined.textContent = `Joined ${joinedDate.toLocaleString('en-US', { month: 'long', year: 'numeric' })}`;
+          }
+        }
+        // Stats
+        if (profileFollowing) profileFollowing.textContent = user.following_count ?? user.followingCount ?? 0;
+        if (profileFollowers) profileFollowers.textContent = user.followers_count ?? user.followersCount ?? 0;
+        if (profileAnnotations) profileAnnotations.textContent = user.annotations_count ?? user.annotationsCount ?? user.post_count ?? 0;
       };
+
+
 
       // 1. Check local storage cache
       let data = {};
@@ -503,8 +554,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // ── Profile Sign Out ─────────────────────────────
+  function initProfileSignOut() {
+    const signOutBtn = document.getElementById('profile-signout-btn');
+    if (!signOutBtn) return;
+    signOutBtn.addEventListener('click', async () => {
+      try {
+        if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+          await chrome.storage.local.remove(['annotated_token', 'annotated_user']);
+        }
+        localStorage.removeItem('annotated_token');
+        localStorage.removeItem('annotated_user');
+      } catch (_) {}
+      window.location.reload();
+    });
+  }
+
   // ── Panel Navigation Triggers ─────────────────
   function initPanelTriggers() {
+
     document.querySelectorAll('[data-panel]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const target = btn.dataset.panel;
@@ -583,20 +651,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       if (typeof chrome === 'undefined' || !chrome.storage) return;
       const settings = await chrome.storage.sync.get(['apiKey', 'model', 'summaryLength']);
-      if (settings.apiKey) {
-        apiKeyInput.value = settings.apiKey;
-        if (apiStatusEl) {
-          apiStatusEl.classList.add('active');
-          const st = apiStatusEl.querySelector('.status-text');
-          if (st) st.innerText = 'Gemini API active';
-        }
-      } else {
-        if (apiStatusEl) {
-          apiStatusEl.classList.remove('active');
-          const st = apiStatusEl.querySelector('.status-text');
-          if (st) st.innerText = 'Demo mode';
+      
+      if (apiKeyInput) {
+        if (settings.apiKey) {
+          apiKeyInput.value = settings.apiKey;
+          if (apiStatusEl) {
+            apiStatusEl.classList.add('active');
+            const st = apiStatusEl.querySelector('.status-text');
+            if (st) st.innerText = 'Gemini API active';
+          }
+        } else {
+          if (apiStatusEl) {
+            apiStatusEl.classList.remove('active');
+            const st = apiStatusEl.querySelector('.status-text');
+            if (st) st.innerText = 'Demo mode';
+          }
         }
       }
+
       if (settings.model && modelSelect) modelSelect.value = settings.model;
       if (settings.summaryLength && lengthSelect) lengthSelect.value = settings.summaryLength;
     } catch (err) {
@@ -605,28 +677,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Save Settings
-  btnSaveSettings.addEventListener('click', async () => {
-    const apiKey = apiKeyInput.value.trim();
-    const model = modelSelect.value;
-    const summaryLength = lengthSelect.value;
+  if (btnSaveSettings) {
+    btnSaveSettings.addEventListener('click', async () => {
+      const apiKey = apiKeyInput.value.trim();
+      const model = modelSelect.value;
+      const summaryLength = lengthSelect.value;
 
-    await chrome.storage.sync.set({ apiKey, model, summaryLength });
-    
-    saveToast.classList.remove('hidden');
-    setTimeout(() => saveToast.classList.add('hidden'), 2500);
+      await chrome.storage.sync.set({ apiKey, model, summaryLength });
+      
+      saveToast.classList.remove('hidden');
+      setTimeout(() => saveToast.classList.add('hidden'), 2500);
 
-    loadSettings();
-  });
+      loadSettings();
+    });
+  }
 
-  toggleKeyVisibilityBtn.addEventListener('click', () => {
-    if (apiKeyInput.type === 'password') {
-      apiKeyInput.type = 'text';
-      toggleKeyVisibilityBtn.innerText = 'Hide';
-    } else {
-      apiKeyInput.type = 'password';
-      toggleKeyVisibilityBtn.innerText = 'Show';
-    }
-  });
+  if (toggleKeyVisibilityBtn) {
+    toggleKeyVisibilityBtn.addEventListener('click', () => {
+      if (apiKeyInput.type === 'password') {
+        apiKeyInput.type = 'text';
+        toggleKeyVisibilityBtn.innerText = 'Hide';
+      } else {
+        apiKeyInput.type = 'password';
+        toggleKeyVisibilityBtn.innerText = 'Show';
+      }
+    });
+  }
 
   // Summarize Now Action
   btnSummarizeNow.addEventListener('click', async () => {
@@ -2841,12 +2917,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tab = await getActiveWebTab();
         if (!tab || !tab.id || !tab.url) return;
 
-        // CRITICAL: ONLY run video watcher on dedicated video platforms! Never hijack normal websites.
-        if (!isDedicatedVideoPlatform(tab.url)) return;
+        // Run video watcher on dedicated video platforms OR when web video is detected
+        const isMediaPlatform = isDedicatedVideoPlatform(tab.url);
+        const isWebVideoActive = currentAnnotationContext.type === 'video' || currentAnnotationContext.hasVideo;
+        if (!isMediaPlatform && !isWebVideoActive) return;
 
         const isYT = !!(tab.url && (tab.url.includes('youtube.com') || tab.url.includes('youtu.be')));
         safeTabSendMessage(tab.id, { action: 'GET_VIDEO_INFO' }, (resp) => {
           if (!resp && !isYT) return;
+          if (!resp?.hasVideo && !resp?.hasAudio && !isYT) return;
           const isAudio = !isYT && (resp?.hasAudio || resp?.mediaType === 'audio' || (!resp?.hasVideo && currentAnnotationContext.type === 'audio'));
           const info = resp || {
             hasVideo: !isAudio,
@@ -3108,8 +3187,46 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (snippetTextEl) snippetTextEl.innerText = currentAnnotationContext.selectedText;
         }
 
-        // Safe query tab for any currently highlighted text on the page
+        // Query tab for video info, media, or highlighted text
         safeTabSendMessage(tab.id, { action: 'GET_VIDEO_INFO' }, (resp) => {
+          if (!isVoiceMode && !isCodeMode && !isCameraMode && resp && resp.hasVideo) {
+            // 🎬 VIDEO DETECTED ON ANY WEBPAGE (BBC, CNN, news site, blog, etc.)!
+            currentAnnotationContext.type = 'video';
+            currentAnnotationContext.hasVideo = true;
+
+            const realTitle = (resp.title && resp.title !== 'Video Content') ? resp.title : pageTitle;
+            const realChannel = resp.channel || platform.name;
+            const cur = Math.max(0, Math.floor(resp.currentTime || 0));
+            const dur = Math.max(cur + 10, Math.floor(resp.duration || 180));
+
+            currentAnnotationContext.mediaTitle = realTitle;
+            currentAnnotationContext.duration = dur;
+            currentAnnotationContext.startTime = cur;
+            currentAnnotationContext.endTime = Math.min(dur, cur + Math.min(30, MAX_CLIP_DURATION));
+            currentAnnotationContext.thumbnailUrl = resp.thumbnailUrl || resp.frameSnapshot || '';
+            lastDetectedVideoId = resp.videoId || null;
+            lastDetectedTitle = realTitle;
+
+            if (mediaTitleEl) {
+              mediaTitleEl.innerText = realTitle;
+              mediaTitleEl.title = realTitle;
+            }
+            if (mediaChannelEl) mediaChannelEl.innerText = realChannel;
+
+            // Show Timeline Trimmer!
+            if (timelineBox) timelineBox.classList.remove('hidden');
+
+            // Badge: e.g. "Bbc Video" or "Web Video"
+            if (sourceBadgeLabel) sourceBadgeLabel.innerText = `${platform.name} Video`;
+            if (sourceBadgeIcon) {
+              sourceBadgeIcon.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>';
+            }
+
+            updateAnnotMediaDisplay(resp);
+            updateAnnotTimeDisplay();
+            updateRulerTicks(dur);
+          }
+
           const textToQuote = (resp && resp.selectedText) || currentAnnotationContext.selectedText;
           const isCode = (resp && resp.isCode) || currentAnnotationContext.isCode;
           if (textToQuote && textToQuote.trim()) {
@@ -3125,11 +3242,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                currentAnnotationContext.isCode = false;
                if (codeSnippetBox) codeSnippetBox.classList.add('hidden');
-               if (snippetBox) snippetBox.classList.remove('hidden');
-               if (snippetTextEl) snippetTextEl.innerText = textToQuote.trim();
+               if (snippetBox) {
+                 snippetBox.classList.remove('hidden');
+                 if (snippetTextEl) snippetTextEl.innerText = textToQuote.trim();
+               }
             }
           } else {
-            if (!platform.isDedicatedVideo && snippetBox) {
+            if (!platform.isDedicatedVideo && !currentAnnotationContext.hasVideo && snippetBox) {
               if (codeSnippetBox) codeSnippetBox.classList.add('hidden');
               snippetBox.classList.remove('hidden');
               if (snippetTextEl) {
@@ -3475,7 +3594,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Camera / Video Snapshot (Take current frame snapshot from video)
+  // Camera / Video Snapshot (Take current frame snapshot from video & activate timeline if available)
   const btnCommentSnapshot = document.getElementById('btn-comment-snapshot');
   if (btnCommentSnapshot) {
     btnCommentSnapshot.addEventListener('click', async () => {
@@ -3485,6 +3604,23 @@ document.addEventListener('DOMContentLoaded', async () => {
           safeTabSendMessage(tab.id, { action: 'GET_VIDEO_INFO' }, (resp) => {
             const frameUrl = (resp && (resp.frameSnapshot || resp.thumbnailUrl)) || DEFAULT_FRAME_THUMB;
             attachImageToComment(frameUrl);
+
+            // If a video exists on the page and the timeline was hidden, open video clipping mode!
+            const timelineBox = document.getElementById('annot-timeline-box');
+            if (resp && resp.hasVideo && timelineBox) {
+              timelineBox.classList.remove('hidden');
+              currentAnnotationContext.type = 'video';
+              currentAnnotationContext.hasVideo = true;
+              const cur = Math.max(0, Math.floor(resp.currentTime || 0));
+              const dur = Math.max(cur + 10, Math.floor(resp.duration || 180));
+              currentAnnotationContext.duration = dur;
+              currentAnnotationContext.startTime = cur;
+              currentAnnotationContext.endTime = Math.min(dur, cur + Math.min(30, MAX_CLIP_DURATION));
+              updateAnnotMediaDisplay(resp);
+              updateAnnotTimeDisplay();
+              updateRulerTicks(dur);
+            }
+
             showStudioToast('Video frame attached');
           });
           return;

@@ -3,6 +3,99 @@
   (function() {
     let tooltipEl = null;
     let activeModalEl = null;
+    let webmindActiveVideo = null;
+    function findEveryVideo(root = document, depth = 0) {
+      if (depth > 6) return [];
+      const results = [];
+      try {
+        const vids = root.querySelectorAll("video");
+        for (let i = 0; i < vids.length; i++) results.push(vids[i]);
+      } catch (_) {
+      }
+      try {
+        const allEls = root.querySelectorAll("*");
+        for (let i = 0; i < allEls.length; i++) {
+          if (allEls[i].shadowRoot) {
+            results.push(...findEveryVideo(allEls[i].shadowRoot, depth + 1));
+          }
+        }
+      } catch (_) {
+      }
+      try {
+        const iframes = root.querySelectorAll("iframe");
+        for (let i = 0; i < iframes.length; i++) {
+          try {
+            if (iframes[i].contentDocument) {
+              results.push(...findEveryVideo(iframes[i].contentDocument, depth + 1));
+            }
+          } catch (_) {
+          }
+        }
+      } catch (_) {
+      }
+      return results;
+    }
+    function getBestVideo(videoList) {
+      if (!videoList || videoList.length === 0) return null;
+      let best = null;
+      let bestScore = -Infinity;
+      for (const v of videoList) {
+        let score = 0;
+        if (!v.paused && !v.ended) score += 1e4;
+        if (v.currentTime > 0) score += 3e3;
+        if (v.duration > 0 && isFinite(v.duration)) score += 1500;
+        const rect = v.getBoundingClientRect ? v.getBoundingClientRect() : { width: v.offsetWidth || 0, height: v.offsetHeight || 0 };
+        const w = v.videoWidth || rect.width || 0;
+        const h = v.videoHeight || rect.height || 0;
+        if (w >= 300 && h >= 160) score += 1e3;
+        else if (w >= 120 && h >= 80) score += 300;
+        else if (w < 40 && h < 40 && !v.currentTime) score -= 5e3;
+        if (v.poster) score += 400;
+        if (v.currentSrc || v.src || v.querySelector("source")) score += 200;
+        if (!v.muted) score += 100;
+        if (v.closest('figure, [class*="media"], [class*="player"], [class*="video"], [class*="article"]')) score += 300;
+        if (score > bestScore) {
+          bestScore = score;
+          best = v;
+        }
+      }
+      return bestScore > -2e3 ? best : videoList[0] || null;
+    }
+    function getActivePageMedia() {
+      if (webmindActiveVideo && document.contains(webmindActiveVideo)) {
+        return webmindActiveVideo;
+      }
+      const allVids = findEveryVideo();
+      const best = getBestVideo(allVids);
+      if (best) {
+        webmindActiveVideo = best;
+        return best;
+      }
+      return document.querySelector("video") || document.querySelector("audio");
+    }
+    try {
+      document.addEventListener("play", (e) => {
+        if (e.target && e.target.tagName === "VIDEO") {
+          webmindActiveVideo = e.target;
+          if (!e.target.dataset.webmindLiveAttached) {
+            e.target.dataset.webmindLiveAttached = "true";
+            e.target.addEventListener("timeupdate", () => {
+              try {
+                chrome.runtime.sendMessage({
+                  action: "VIDEO_TIME_TICK",
+                  currentTime: e.target.currentTime,
+                  duration: e.target.duration,
+                  paused: e.target.paused
+                }).catch(() => {
+                });
+              } catch (_) {
+              }
+            });
+          }
+        }
+      }, true);
+    } catch (_) {
+    }
     function extractPageContent() {
       const title = document.title || "Untitled Page";
       const url = window.location.href;
@@ -361,45 +454,133 @@
         if (msMeta?.artwork && msMeta.artwork.length > 0) {
           msArtwork = msMeta.artwork[msMeta.artwork.length - 1].src || msMeta.artwork[0].src;
         }
-        const videos = Array.from(document.querySelectorAll("video"));
-        const activeVideo = videos.find((v) => !v.paused) || videos.find((v) => v.duration > 0 || v.currentTime > 0) || videos[0];
+        const allVideos = findEveryVideo();
+        const bestVideo = getBestVideo(allVideos);
+        const activeVideo = webmindActiveVideo && document.contains(webmindActiveVideo) ? webmindActiveVideo : bestVideo;
         const audios = Array.from(document.querySelectorAll("audio"));
         const activeAudio = audios.find((a) => !a.paused) || audios.find((a) => a.duration > 0 || a.currentTime > 0) || audios[0];
-        const mediaPlatforms = ["youtube.com", "youtu.be", "tiktok.com", "instagram.com", "vimeo.com", "x.com", "twitter.com", "twitch.tv"];
+        const mediaPlatforms = ["youtube.com", "youtu.be", "tiktok.com", "instagram.com", "vimeo.com", "x.com", "twitter.com", "twitch.tv", "dailymotion.com"];
         const isMediaPlatform = mediaPlatforms.some((domain) => url.includes(domain));
         const audioPlatforms = ["thmanyah.com", "spotify.com", "soundcloud.com", "podcasts.apple.com", "anghami.com", "spreaker.com"];
         const isAudioPlatform = audioPlatforms.some((domain) => url.includes(domain));
-        if (activeVideo && isMediaPlatform && !isAudioPlatform && (activeVideo.duration > 0 || !activeAudio && (videoId || videos.length > 0))) {
-          if (!activeVideo.dataset.webmindLiveAttached) {
-            activeVideo.dataset.webmindLiveAttached = "true";
-            activeVideo.addEventListener("timeupdate", () => {
-              try {
-                chrome.runtime.sendMessage({
-                  action: "VIDEO_TIME_TICK",
-                  currentTime: activeVideo.currentTime,
-                  duration: activeVideo.duration,
-                  paused: activeVideo.paused
-                }).catch(() => {
-                });
-              } catch (e) {
-              }
-            });
+        let iframeEmbedUrl = "";
+        let iframeVideoId = null;
+        if (!activeVideo) {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const ifr of iframes) {
+            const src = ifr.src || ifr.getAttribute("data-src") || "";
+            const m = src.match(/(?:youtube\.com\/(?:embed\/|v\/)|youtu\.be\/)([\w-]{11})/);
+            if (m && m[1]) {
+              iframeVideoId = m[1];
+              iframeEmbedUrl = src;
+              if (!thumbnailUrl) thumbnailUrl = `https://i.ytimg.com/vi/${iframeVideoId}/hqdefault.jpg`;
+              break;
+            } else if (src.includes("player.vimeo.com") || src.includes("dailymotion.com/embed")) {
+              iframeEmbedUrl = src;
+              break;
+            }
+          }
+        }
+        const hasValidVideoEl = !!(activeVideo && (!activeVideo.paused || activeVideo.currentTime > 0 || activeVideo.duration > 0 || activeVideo.poster || activeVideo.currentSrc || activeVideo.src || activeVideo.querySelector("source") || activeVideo.offsetWidth >= 80 && activeVideo.offsetHeight >= 50 || activeVideo.videoWidth >= 80));
+        const hasVideo = !isAudioPlatform && (hasValidVideoEl || videoId || iframeVideoId || isMediaPlatform && allVideos.length > 0);
+        if (hasVideo) {
+          if (activeVideo) {
+            webmindActiveVideo = activeVideo;
+            if (!activeVideo.dataset.webmindLiveAttached) {
+              activeVideo.dataset.webmindLiveAttached = "true";
+              activeVideo.addEventListener("timeupdate", () => {
+                try {
+                  chrome.runtime.sendMessage({
+                    action: "VIDEO_TIME_TICK",
+                    currentTime: activeVideo.currentTime,
+                    duration: activeVideo.duration,
+                    paused: activeVideo.paused
+                  }).catch(() => {
+                  });
+                } catch (e) {
+                }
+              });
+            }
           }
           let frameSnapshot = "";
-          try {
-            const canvas = document.createElement("canvas");
-            canvas.width = Math.min(activeVideo.videoWidth || 480, 480);
-            canvas.height = Math.min(activeVideo.videoHeight || 270, 270);
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(activeVideo, 0, 0, canvas.width, canvas.height);
-            frameSnapshot = canvas.toDataURL("image/jpeg", 0.75);
-          } catch (e) {
+          if (activeVideo) {
+            try {
+              const canvas = document.createElement("canvas");
+              canvas.width = Math.min(activeVideo.videoWidth || 480, 480);
+              canvas.height = Math.min(activeVideo.videoHeight || 270, 270);
+              const ctx = canvas.getContext("2d");
+              ctx.drawImage(activeVideo, 0, 0, canvas.width, canvas.height);
+              frameSnapshot = canvas.toDataURL("image/jpeg", 0.75);
+            } catch (e) {
+            }
           }
-          const channel = document.querySelector("#channel-name, ytd-channel-name a, #owner-name a, #upload-info a, yt-formatted-string.ytd-channel-name")?.innerText?.trim() || msArtist || "";
-          const rawTitle = document.querySelector("h1.ytd-watch-metadata, #title h1, h1.title")?.innerText?.trim() || msTitle || document.title || "Video Content";
-          const title = rawTitle.replace(" - YouTube", "").trim();
-          const cur = Math.floor(activeVideo.currentTime || 0);
-          const dur = Math.floor(activeVideo.duration || 0);
+          const poster = activeVideo && activeVideo.poster || "";
+          const ogImage = document.querySelector('meta[property="og:image"]')?.content || "";
+          const twImage = document.querySelector('meta[name="twitter:image"]')?.content || "";
+          const bestThumb = frameSnapshot || poster || thumbnailUrl || ogImage || twImage || msArtwork || "";
+          let title = "";
+          if (activeVideo) {
+            const container = activeVideo.closest('figure, [class*="media"], [class*="player"], [class*="video"], [class*="article__media"], [data-component*="video"]') || activeVideo.parentElement;
+            if (container) {
+              const captionEl = container.querySelector('figcaption, [class*="caption"], [class*="headline"], [class*="title"], h2, h3');
+              if (captionEl && captionEl.innerText.trim()) {
+                title = captionEl.innerText.trim();
+              }
+            }
+            if (!title && activeVideo.getAttribute("title")) title = activeVideo.getAttribute("title").trim();
+            if (!title && activeVideo.getAttribute("aria-label")) title = activeVideo.getAttribute("aria-label").trim();
+          }
+          if (!title && url.includes("youtube.com")) {
+            const ytTitle = document.querySelector("h1.ytd-watch-metadata, #title h1, h1.title")?.innerText?.trim();
+            if (ytTitle) title = ytTitle.replace(" - YouTube", "").trim();
+          }
+          if (!title && msTitle) title = msTitle;
+          if (!title) {
+            const h1 = document.querySelector("h1");
+            if (h1 && h1.innerText.trim()) {
+              title = h1.innerText.trim();
+            } else {
+              title = (document.title || "Video Content").replace(" - YouTube", "").trim();
+            }
+          }
+          let channel = "";
+          if (url.includes("youtube.com")) {
+            channel = document.querySelector("#channel-name, ytd-channel-name a, #owner-name a, #upload-info a, yt-formatted-string.ytd-channel-name")?.innerText?.trim() || "YouTube";
+          } else {
+            const siteName = document.querySelector('meta[property="og:site_name"]')?.content;
+            if (siteName) {
+              channel = siteName.trim();
+            } else {
+              const domainHost = window.location.hostname.replace(/^www\./, "");
+              channel = domainHost.charAt(0).toUpperCase() + domainHost.slice(1);
+            }
+          }
+          const cur = Math.floor(activeVideo && activeVideo.currentTime || 0);
+          let dur = Math.floor(activeVideo && activeVideo.duration || 0);
+          if (!dur || isNaN(dur) || !isFinite(dur)) {
+            dur = 0;
+            if (activeVideo) {
+              const container = activeVideo.closest('figure, [class*="media"], [class*="player"], [class*="video"], [class*="article__media"], [data-component*="video"]') || activeVideo.parentElement;
+              if (container) {
+                const tMatch = (container.innerText || "").match(/\b(?:(\d{1,2}):)?(\d{1,2}):(\d{2})\b/);
+                if (tMatch) {
+                  const p1 = Number(tMatch[1] || 0);
+                  const p2 = Number(tMatch[2] || 0);
+                  const p3 = Number(tMatch[3] || 0);
+                  dur = p1 ? p1 * 3600 + p2 * 60 + p3 : p2 * 60 + p3;
+                }
+              }
+            }
+            if (!dur) {
+              const comboRegex = /\b(\d{1,2}:\d{2}(?::\d{2})?)\s*\/\s*(\d{1,2}:\d{2}(?::\d{2})?)\b/;
+              const comboMatch = document.body.innerText.match(comboRegex);
+              if (comboMatch) {
+                const parts = comboMatch[2].split(":").map(Number);
+                dur = parts.length === 3 ? parts[0] * 3600 + parts[1] * 60 + parts[2] : parts[0] * 60 + parts[1];
+              }
+            }
+            if (!dur) dur = 180;
+          }
           sendResponse({
             hasMedia: true,
             hasVideo: true,
@@ -408,15 +589,16 @@
             currentTime: cur,
             rightClickTime: lastRightClickVideoTime || cur,
             duration: dur,
-            isPaused: activeVideo.paused,
+            isPaused: activeVideo ? activeVideo.paused : true,
             title,
             url,
             selectedText: selected,
             isCode,
-            videoId,
-            thumbnailUrl: thumbnailUrl || frameSnapshot || msArtwork || "",
+            videoId: videoId || iframeVideoId,
+            thumbnailUrl: bestThumb,
             frameSnapshot,
-            channel: channel || "Official Channel"
+            channel: channel || "Official Channel",
+            videoSrc: activeVideo ? activeVideo.currentSrc || activeVideo.src : iframeEmbedUrl || ""
           });
           return true;
         }
@@ -524,7 +706,7 @@
         return true;
       }
       if (request.action === "PLAY_CLIP") {
-        const media = document.querySelector("video") && !document.querySelector("video").paused ? document.querySelector("video") : document.querySelector("audio") || document.querySelector("video");
+        const media = getActivePageMedia();
         if (media) {
           media.currentTime = request.startTime || 0;
           media.play().catch(() => {
@@ -542,7 +724,7 @@
         return true;
       }
       if (request.action === "SEEK_VIDEO" || request.action === "SEEK_MEDIA") {
-        const media = document.querySelector("video") && !document.querySelector("video").paused ? document.querySelector("video") : document.querySelector("audio") || document.querySelector("video");
+        const media = getActivePageMedia();
         if (media && typeof request.time === "number") {
           media.currentTime = request.time;
           if (request.play) media.play().catch(() => {
@@ -552,7 +734,7 @@
         return true;
       }
       if (request.action === "PREVIEW_CLIP") {
-        const media = document.querySelector("video") && !document.querySelector("video").paused ? document.querySelector("video") : document.querySelector("audio") || document.querySelector("video");
+        const media = getActivePageMedia();
         if (media && typeof request.startTime === "number" && typeof request.endTime === "number") {
           media.currentTime = request.startTime;
           media.play().catch(() => {
@@ -569,7 +751,7 @@
         return true;
       }
       if (request.action === "PAUSE_VIDEO") {
-        const video = document.querySelector("video");
+        const video = getActivePageMedia();
         if (window._previewClipTimer) clearTimeout(window._previewClipTimer);
         if (video && !video.paused) {
           video.pause();
@@ -581,7 +763,7 @@
         const s = typeof request.startTime === "number" ? request.startTime : 0;
         const e = typeof request.endTime === "number" ? request.endTime : 90;
         let matchedText = [];
-        const videos = document.querySelectorAll("video");
+        const videos = findEveryVideo();
         videos.forEach((v) => {
           if (v.textTracks) {
             for (let i = 0; i < v.textTracks.length; i++) {
