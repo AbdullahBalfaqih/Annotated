@@ -152,12 +152,112 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (token) reqHeaders["Authorization"] = `Bearer ${token}`;
         if (user?.id) reqHeaders["X-User-Id"] = user.id;
         if (request.payload?.user_id) reqHeaders["X-User-Id"] = request.payload.user_id;
-        const res = await fetch("http://localhost:5000/api/annotations", {
-          method: "POST",
-          headers: reqHeaders,
-          body: JSON.stringify(request.payload)
-        });
-        const data = await res.json();
+        let data = null;
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 1200);
+          const res = await fetch("http://localhost:5000/api/annotations", {
+            method: "POST",
+            headers: reqHeaders,
+            body: JSON.stringify(request.payload),
+            signal: controller.signal
+          });
+          clearTimeout(timer);
+          if (res.ok) {
+            data = await res.json();
+          }
+        } catch (_) {
+        }
+        if (!data || !data.success) {
+          const SUPABASE_URL = "https://aaemqxlfzkkgchwhcisw.supabase.co";
+          const SUPABASE_ANON_KEY = "sb_publishable_171z2Negckh-UAFXHg91cA_YImBzFxn";
+          const spHeaders = {
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+            "Content-Type": "application/json",
+            "Prefer": "return=representation"
+          };
+          let userId = user?.id || request.payload?.user_id;
+          if (!userId) {
+            try {
+              const uRes = await fetch(`${SUPABASE_URL}/rest/v1/users?select=id,name,handle&order=created_at.desc&limit=1`, { headers: spHeaders });
+              const uList = await uRes.json();
+              if (Array.isArray(uList) && uList[0]?.id) {
+                userId = uList[0].id;
+              }
+            } catch (_) {
+            }
+          }
+          if (!userId) {
+            throw new Error("User session not found. Please log in.");
+          }
+          const payload = request.payload || {};
+          const finalUrl = payload.page_url || payload.url || "https://annotated.ai";
+          let finalDomain = payload.page_domain || "";
+          try {
+            if (!finalDomain) finalDomain = new URL(finalUrl).hostname;
+          } catch (_) {
+          }
+          const finalTitle = payload.page_title || payload.title || "Web Research";
+          const finalHighlighted = payload.highlighted_text || payload.highlightedText || "";
+          const finalNote = payload.note || payload.comment || "";
+          const finalMediaType = payload.media_type || "article";
+          let annotation = null;
+          try {
+            const aRes = await fetch(`${SUPABASE_URL}/rest/v1/annotations`, {
+              method: "POST",
+              headers: spHeaders,
+              body: JSON.stringify({
+                user_id: userId,
+                page_url: finalUrl,
+                page_title: finalTitle,
+                page_domain: finalDomain,
+                highlighted_text: finalHighlighted,
+                note: finalNote,
+                color: payload.color || "#3297EE",
+                anchor_selector: payload.anchor_selector || "text",
+                tags: payload.tags || ["annotation"]
+              })
+            });
+            const aData = await aRes.json();
+            annotation = Array.isArray(aData) ? aData[0] : aData;
+          } catch (aErr) {
+            console.warn("Supabase annotation insert warning:", aErr);
+          }
+          let postContent = finalNote || "";
+          if (finalHighlighted && finalHighlighted.trim()) {
+            const cleanNote = (finalNote || "").trim();
+            if (cleanNote && cleanNote !== finalHighlighted.trim()) {
+              postContent = `"${finalHighlighted.trim()}"
+
+${cleanNote}`;
+            } else {
+              postContent = `"${finalHighlighted.trim()}"`;
+            }
+          }
+          if (!postContent) postContent = "Saved annotation";
+          const postMediaUrl = payload.attached_media || finalUrl;
+          const postMediaType = payload.attached_media_type || (payload.attached_media ? "image" : finalMediaType);
+          let post = null;
+          try {
+            const pRes = await fetch(`${SUPABASE_URL}/rest/v1/posts`, {
+              method: "POST",
+              headers: spHeaders,
+              body: JSON.stringify({
+                user_id: userId,
+                content: postContent,
+                media_url: postMediaUrl,
+                media_type: postMediaType,
+                hashtags: ["annotation", "research"]
+              })
+            });
+            const pData = await pRes.json();
+            post = Array.isArray(pData) ? pData[0] : pData;
+          } catch (pErr) {
+            console.warn("Supabase post insert warning:", pErr);
+          }
+          data = { success: true, annotation, post };
+        }
         if (data && data.success) {
           try {
             const tabs = await chrome.tabs.query({});

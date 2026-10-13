@@ -1445,7 +1445,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         allPosts = dbJson.posts;
       }
     } catch (e) {
-      console.warn('Error fetching posts for listen:', e);
+      // Local server down: fetch directly from Supabase Cloud!
+      try {
+        const supRes = await fetch('https://aaemqxlfzkkgchwhcisw.supabase.co/rest/v1/posts?select=*,users(name,handle,avatar_url)&order=created_at.desc&limit=50', {
+          headers: {
+            'apikey': 'sb_publishable_171z2Negckh-UAFXHg91cA_YImBzFxn',
+            'Authorization': 'Bearer sb_publishable_171z2Negckh-UAFXHg91cA_YImBzFxn'
+          }
+        });
+        const supPosts = await supRes.json();
+        if (Array.isArray(supPosts)) {
+          allPosts = supPosts.map(p => ({
+            ...p,
+            author_name: p.users?.name || 'Community Member',
+            author_handle: p.users?.handle || 'user',
+            author_avatar: p.users?.avatar_url || ''
+          }));
+        }
+      } catch (_) {}
     }
 
     // 3. Also check local annotations
@@ -3899,14 +3916,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (token) reqHeaders['Authorization'] = `Bearer ${token}`;
         if (user?.id) reqHeaders['X-User-Id'] = user.id;
 
-        const apiRes = await fetch('http://localhost:5000/api/annotations', {
-          method: 'POST',
-          headers: reqHeaders,
-          body: JSON.stringify(payload)
-        });
-        const apiJson = await apiRes.json();
+        let apiJson = null;
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 1200);
+          const apiRes = await fetch('http://localhost:5000/api/annotations', {
+            method: 'POST',
+            headers: reqHeaders,
+            body: JSON.stringify(payload),
+            signal: controller.signal
+          });
+          clearTimeout(timer);
+          if (apiRes.ok) apiJson = await apiRes.json();
+        } catch (_) {}
+
+        // Fallback to background service worker direct Supabase Cloud publisher
+        if (!apiJson || !apiJson.success) {
+          apiJson = await new Promise((resolve) => {
+            safeRuntimeSendMessage({ action: 'PUBLISH_ANNOTATION_POST', payload }, resolve);
+          });
+        }
+
         if (apiJson?.success) {
-          console.log('[Annotated Extension] Successfully published to platform PostgreSQL:', apiJson);
+          console.log('[Annotated Extension] Successfully published to platform PostgreSQL / Supabase:', apiJson);
           // Notify open web app tabs to immediately update their feed and annotations
           if (typeof chrome !== 'undefined' && chrome.tabs) {
             const allTabs = await chrome.tabs.query({});
@@ -4092,7 +4124,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         allPosts = dbJson.posts;
       }
     } catch (e) {
-      console.warn('Error fetching posts for conversation:', e);
+      // Local server down: fetch directly from Supabase Cloud!
+      try {
+        const supRes = await fetch('https://aaemqxlfzkkgchwhcisw.supabase.co/rest/v1/posts?select=*,users(name,handle,avatar_url)&order=created_at.desc&limit=50', {
+          headers: {
+            'apikey': 'sb_publishable_171z2Negckh-UAFXHg91cA_YImBzFxn',
+            'Authorization': 'Bearer sb_publishable_171z2Negckh-UAFXHg91cA_YImBzFxn'
+          }
+        });
+        const supPosts = await supRes.json();
+        if (Array.isArray(supPosts)) {
+          allPosts = supPosts.map(p => ({
+            ...p,
+            author_name: p.users?.name || 'Community Member',
+            author_handle: p.users?.handle || 'user',
+            author_avatar: p.users?.avatar_url || ''
+          }));
+        }
+      } catch (_) {}
     }
 
     // Filter posts:
@@ -4317,12 +4366,42 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (activeAuthToken) reqHeaders['Authorization'] = `Bearer ${activeAuthToken}`;
           if (currentUser?.id) reqHeaders['X-User-Id'] = currentUser.id;
 
-          const res = await fetch(`http://localhost:5000/api/posts/${post.id}/comments`, {
-            method: 'POST',
-            headers: reqHeaders,
-            body: JSON.stringify({ content: text, user_id: currentUser?.id })
-          });
-          const data = await res.json();
+          let data = null;
+          try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 1200);
+            const res = await fetch(`http://localhost:5000/api/posts/${post.id}/comments`, {
+              method: 'POST',
+              headers: reqHeaders,
+              body: JSON.stringify({ content: text, user_id: currentUser?.id }),
+              signal: controller.signal
+            });
+            clearTimeout(timer);
+            if (res.ok) data = await res.json();
+          } catch (_) {}
+
+          if (!data || !data.success) {
+            try {
+              const supRes = await fetch('https://aaemqxlfzkkgchwhcisw.supabase.co/rest/v1/comments', {
+                method: 'POST',
+                headers: {
+                  'apikey': 'sb_publishable_171z2Negckh-UAFXHg91cA_YImBzFxn',
+                  'Authorization': 'Bearer sb_publishable_171z2Negckh-UAFXHg91cA_YImBzFxn',
+                  'Content-Type': 'application/json',
+                  'Prefer': 'return=representation'
+                },
+                body: JSON.stringify({
+                  post_id: post.id,
+                  user_id: currentUser?.id,
+                  content: text
+                })
+              });
+              const cList = await supRes.json();
+              if (Array.isArray(cList) && cList[0]?.id) {
+                data = { success: true, comment: cList[0] };
+              }
+            } catch (_) {}
+          }
           if (data.success && data.comment) {
             newCommentRow.id = `comment-${data.comment.id}`;
             // Notify web app again with confirmed ID
