@@ -844,6 +844,19 @@ export async function createPost(userId, { content, mediaUrl = null, mediaType =
   return res.rows[0];
 }
 
+export async function deletePost(postId) {
+  try {
+    await query('DELETE FROM likes WHERE post_id = $1', [postId]);
+    await query('DELETE FROM comments WHERE post_id = $1', [postId]);
+    await query('DELETE FROM bookmarks WHERE post_id = $1', [postId]);
+    const res = await query('DELETE FROM posts WHERE id = $1', [postId]);
+    return res.rowCount > 0;
+  } catch (err) {
+    console.error('Error deleting post:', err);
+    return false;
+  }
+}
+
 export async function togglePostLike(postId, userId) {
   const check = await query('SELECT id FROM likes WHERE post_id = $1 AND user_id = $2', [postId, userId]);
 

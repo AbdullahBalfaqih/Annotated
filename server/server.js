@@ -9,6 +9,7 @@ import {
   getWorkspaceDetails,
   getFeedPosts, 
   createPost, 
+  deletePost,
   togglePostLike, 
   toggleBookmark,
   addComment, 
@@ -180,6 +181,16 @@ app.post('/api/posts', requireAuth, async (req, res) => {
     const userId = req.user?.id || req.user?.user_id;
     const post = await createPost(userId, { content, mediaUrl, mediaType, hashtags });
     res.status(201).json({ success: true, post });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/posts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await deletePost(id);
+    res.json({ success: true, message: 'Post deleted successfully' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

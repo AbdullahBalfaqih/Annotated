@@ -33,7 +33,7 @@ function parsePostQuoteAndNote(content) {
   return { quote: null, note: trimmed };
 }
 
-function YouTubeClipPlayer({ postId, clip, mediaUrl }) {
+function YouTubeClipPlayer({ postId, clip, mediaUrl, hasTopHeader = false }) {
   const containerId = `yt-player-${postId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
   const playerRef = useRef(null);
   const wrapperRef = useRef(null);
@@ -233,7 +233,7 @@ function YouTubeClipPlayer({ postId, clip, mediaUrl }) {
   };
 
   return (
-    <div ref={wrapperRef} className="w-full rounded-[14px] overflow-hidden border border-gray-200/90 shadow-2xs bg-black flex flex-col group relative select-none">
+    <div ref={wrapperRef} className={`w-full overflow-hidden bg-black flex flex-col group relative select-none ${hasTopHeader ? 'rounded-b-2xl border-t border-gray-900' : 'rounded-[14px] border border-gray-200/90 shadow-2xs'}`}>
       {/* Video Container (Strictly clipped aspect-video) */}
       <div
         className="relative w-full aspect-video bg-black overflow-hidden cursor-pointer"
@@ -393,7 +393,7 @@ function YouTubeClipPlayer({ postId, clip, mediaUrl }) {
 }
 
 // ----------------- AUDIO CLIP PLAYER (Spreaker / Podcasts / Direct Audio) -----------------
-function AudioClipPlayer({ postId, clip, mediaUrl, post }) {
+function AudioClipPlayer({ postId, clip, mediaUrl, post, hasTopHeader = false }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [clipProgress, setClipProgress] = useState(0); // 0 to duration
@@ -404,7 +404,7 @@ function AudioClipPlayer({ postId, clip, mediaUrl, post }) {
   const { quote: parsedQuote, note: parsedNote } = post?.content ? parsePostQuoteAndNote(post.content) : { quote: null, note: '' };
   const fallbackTitle = post?.title || parsedQuote || (parsedNote ? parsedNote.split('\n')[0].replace(/^["“]|["”]$/g, '').trim() : '') || 'Podcast Audio Clip';
   const [title, setTitle] = useState(fallbackTitle);
-  const [showName, setShowName] = useState(clip?.platform === 'spreaker' ? 'Spreaker' : 'Audio');
+  const [showName, setShowName] = useState(clip?.platform === 'spreaker' ? 'Spreaker' : clip?.platform === 'apple' ? 'Apple Podcasts' : 'Audio');
   const [streamUrl, setStreamUrl] = useState(clip?.streamUrl || null);
   const [isLoadingMetadata, setIsLoadingMetadata] = useState(Boolean(clip?.spreakerEpisodeId));
   const [hasArtworkError, setHasArtworkError] = useState(false);
@@ -427,7 +427,7 @@ function AudioClipPlayer({ postId, clip, mediaUrl, post }) {
     return `${String(m).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
   };
 
-  // Fetch Spreaker episode metadata (artwork image, show title, audio stream)
+  // 1. Fetch Spreaker episode metadata (artwork image, show title, audio stream)
   useEffect(() => {
     if (clip?.spreakerEpisodeId) {
       setIsLoadingMetadata(true);
@@ -437,7 +437,10 @@ function AudioClipPlayer({ postId, clip, mediaUrl, post }) {
           const ep = data?.response?.episode;
           if (ep) {
             const img = ep.image_original_url || ep.image_url;
-            if (img) setArtworkUrl(img);
+            if (img) {
+              setArtworkUrl(img);
+              setHasArtworkError(false);
+            }
             if (ep.title) setTitle(ep.title);
             if (ep.show?.title) setShowName(ep.show.title);
             if (ep.playback_url) setStreamUrl(ep.playback_url);
@@ -451,6 +454,53 @@ function AudioClipPlayer({ postId, clip, mediaUrl, post }) {
         });
     }
   }, [clip?.spreakerEpisodeId]);
+
+  // 2. Fetch Apple Podcasts episode & show artwork
+  useEffect(() => {
+    const targetUrl = mediaUrl || post?.media_url;
+    if (targetUrl && (targetUrl.includes('podcasts.apple.com') || clip?.platform === 'apple')) {
+      const match = targetUrl.match(/\/id(\d+)/i);
+      if (match && match[1]) {
+        const appleId = match[1];
+        fetch(`https://itunes.apple.com/lookup?id=${appleId}`)
+          .then(res => res.json())
+          .then(data => {
+            const item = data?.results?.[0];
+            if (item) {
+              const img = item.artworkUrl600 || item.artworkUrl100;
+              if (img) {
+                setArtworkUrl(img);
+                setHasArtworkError(false);
+              }
+              if (item.collectionName) setShowName(item.collectionName);
+              else if (item.artistName) setShowName(item.artistName);
+            }
+          })
+          .catch((err) => {
+            console.warn('Error fetching Apple Podcasts metadata:', err);
+          });
+      }
+    }
+  }, [mediaUrl, post?.media_url, clip?.platform]);
+
+  // 3. Fetch SoundCloud artwork & show name
+  useEffect(() => {
+    const targetUrl = mediaUrl || post?.media_url;
+    if (targetUrl && (targetUrl.includes('soundcloud.com') || clip?.platform === 'soundcloud')) {
+      fetch(`https://soundcloud.com/oembed?format=json&url=${encodeURIComponent(targetUrl)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data?.thumbnail_url) {
+            setArtworkUrl(data.thumbnail_url);
+            setHasArtworkError(false);
+          }
+          if (data?.author_name) setShowName(data.author_name);
+        })
+        .catch((err) => {
+          console.warn('Error fetching SoundCloud metadata:', err);
+        });
+    }
+  }, [mediaUrl, post?.media_url, clip?.platform]);
 
   // Handle Play/Pause
   const togglePlay = (e) => {
@@ -526,10 +576,10 @@ function AudioClipPlayer({ postId, clip, mediaUrl, post }) {
     setIsMuted(nextMuted);
   };
 
-  const displayPlatform = clip.platform === 'spreaker' ? 'Spreaker' : clip.platform === 'spotify' ? 'Spotify' : 'Podcast Clip';
+  const displayPlatform = clip.platform === 'spreaker' ? 'Spreaker' : clip.platform === 'spotify' ? 'Spotify' : clip.platform === 'apple' ? 'Apple Podcasts' : clip.platform === 'soundcloud' ? 'SoundCloud' : 'Podcast Clip';
 
   return (
-    <div className="w-full rounded-[14px] overflow-hidden border border-gray-800 bg-black text-white shadow-sm flex flex-col group relative select-none">
+    <div className={`w-full overflow-hidden bg-black text-white shadow-sm flex flex-col group relative select-none ${hasTopHeader ? 'rounded-b-2xl border-t border-gray-900' : 'rounded-[14px] border border-gray-800'}`}>
       {/* Hidden HTML5 Audio Element */}
       {streamUrl && (
         <audio
@@ -1053,6 +1103,7 @@ export default function HomePage() {
   const [showQuoteInput, setShowQuoteInput] = useState(false);
   const [mediaUrl, setMediaUrl] = useState(null);
   const [postToDelete, setPostToDelete] = useState(null);
+  const [openPostMenuId, setOpenPostMenuId] = useState(null);
   const [promptModal, setPromptModal] = useState(null);
   const [promptInputValue, setPromptInputValue] = useState('');
   const fileInputRef = useRef(null);
@@ -1073,6 +1124,11 @@ export default function HomePage() {
   const [activeChatId, setActiveChatId] = useState(null);
   const [messageInput, setMessageInput] = useState('');
   const [messagesChat, setMessagesChat] = useState([]);
+  useEffect(() => {
+    const handleGlobalClick = () => setOpenPostMenuId(null);
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, []);
 
   useEffect(() => {
     if (!activeChatId || !currentUser) return;
@@ -2126,22 +2182,32 @@ export default function HomePage() {
   };
 
   const handleDeletePost = async (postId) => {
+    if (!postId) return;
+    // Optimistic UI removal
     setPosts(prev => prev.filter(p => p.id !== postId));
     setPostToDelete(null);
-    const token = localStorage.getItem('annotated_token');
-    if (token && !postId.toString().startsWith('local-')) {
-      if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-        try {
-          await fetch(`http://localhost:5000/api/posts/${postId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-        } catch (_) { }
+    setOpenPostMenuId(null);
+
+    // 1. Delete from Supabase Database (connected directly to backend database)
+    try {
+      const { error: sError } = await supabase.from('posts').delete().eq('id', postId);
+      if (sError) {
+        console.warn('Supabase post delete warning:', sError);
+      } else {
+        console.log('Post deleted successfully from Supabase:', postId);
       }
-      try {
-        await supabase.from('posts').delete().eq('id', postId);
-      } catch (_) {}
+    } catch (err) {
+      console.warn('Supabase post delete error:', err);
     }
+
+    // 2. Also notify local server if running
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('annotated_token') : null;
+      await fetch(`http://localhost:5000/api/posts/${postId}`, {
+        method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+    } catch (_) {}
   };
 
   const handleImageUpload = (e) => {
@@ -3996,13 +4062,58 @@ export default function HomePage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                          {/* Three dots menu */}
-                          <button onClick={() => setPostToDelete(post.id)} title="Delete Post" className="p-1 text-gray-400 hover:text-red-500 transition-colors cursor-pointer">
+                        <div className="flex items-center gap-3 relative">
+                          {/* Three dots options menu */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenPostMenuId(openPostMenuId === post.id ? null : post.id);
+                            }}
+                            title="Post Options"
+                            className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+                          >
                             <svg width="19" height="19" viewBox="0 0 19 19" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M9.49703 15.8346C9.23499 15.8346 9.01161 15.7414 8.82689 15.5548C8.64217 15.3682 8.5498 15.1439 8.5498 14.8819C8.5498 14.6198 8.64309 14.3964 8.82966 14.2117C9.01623 14.027 9.24053 13.9346 9.50258 13.9346C9.76462 13.9346 9.988 14.0279 10.1727 14.2145C10.3574 14.4011 10.4498 14.6254 10.4498 14.8874C10.4498 15.1494 10.3565 15.3728 10.17 15.5576C9.98338 15.7423 9.75908 15.8346 9.49703 15.8346ZM9.49703 10.4513C9.23499 10.4513 9.01161 10.358 8.82689 10.1714C8.64217 9.98488 8.5498 9.76057 8.5498 9.49853C8.5498 9.23649 8.64309 9.01311 8.82966 8.82839C9.01623 8.64366 9.24053 8.5513 9.50258 8.5513C9.76462 8.5513 9.988 8.64459 10.1727 8.83116C10.3574 9.01773 10.4498 9.24203 10.4498 9.50407C10.4498 9.76611 10.3565 9.9895 10.17 10.1742C9.98338 10.3589 9.75908 10.4513 9.49703 10.4513ZM9.49703 5.06797C9.23499 5.06797 9.01161 4.97468 8.82689 4.78811C8.64217 4.60154 8.5498 4.37724 8.5498 4.1152C8.5498 3.85316 8.64309 3.62977 8.82966 3.44505C9.01623 3.26033 9.24053 3.16797 9.50258 3.16797C9.76462 3.16797 9.988 3.26125 10.1727 3.44782C10.3574 3.63439 10.4498 3.8587 10.4498 4.12074C10.4498 4.38278 10.3565 4.60616 10.17 4.79089C9.98338 4.97561 9.75908 5.06797 9.49703 5.06797Z" fill="#242424" />
+                              <path d="M9.49703 15.8346C9.23499 15.8346 9.01161 15.7414 8.82689 15.5548C8.64217 15.3682 8.5498 15.1439 8.5498 14.8819C8.5498 14.6198 8.64309 14.3964 8.82966 14.2117C9.01623 14.027 9.24053 13.9346 9.50258 13.9346C9.76462 13.9346 9.988 14.0279 10.1727 14.2145C10.3574 14.4011 10.4498 14.6254 10.4498 14.8874C10.4498 15.1494 10.3565 15.3728 10.17 15.5576C9.98338 15.7423 9.75908 15.8346 9.49703 15.8346ZM9.49703 10.4513C9.23499 10.4513 9.01161 10.358 8.82689 10.1714C8.64217 9.98488 8.5498 9.76057 8.5498 9.49853C8.5498 9.23649 8.64309 9.01311 8.82966 8.82839C9.01623 8.64366 9.24053 8.5513 9.50258 8.5513C9.76462 8.5513 9.988 8.64459 10.1727 8.83116C10.3574 9.01773 10.4498 9.24203 10.4498 9.50407C10.4498 9.76611 10.3565 9.9895 10.17 10.1742C9.98338 10.3589 9.75908 10.4513 9.49703 10.4513ZM9.49703 5.06797C9.23499 5.06797 9.01161 4.97468 8.82689 4.78811C8.64217 4.60154 8.5498 4.37724 8.5498 4.1152C8.5498 3.85316 8.64309 3.62977 8.82966 3.44505C9.01623 3.26033 9.24053 3.16797 9.50258 3.16797C9.76462 3.16797 9.988 3.26125 10.1727 3.44782C10.3574 3.63439 10.4498 3.8587 10.4498 4.12074C10.4498 4.38278 10.3565 4.60616 10.17 4.79089C9.98338 4.97561 9.75908 5.06797 9.49703 5.06797Z" fill="currentColor" />
                             </svg>
                           </button>
+
+                          {/* Interactive Dropdown Menu */}
+                          {openPostMenuId === post.id && (
+                            <div className="absolute right-0 top-8 w-44 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenPostMenuId(null);
+                                  setPostToDelete(post.id);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-red-600 hover:bg-red-50 transition-colors font-medium text-left cursor-pointer"
+                              >
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="3 6 5 6 21 6"></polyline>
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                                </svg>
+                                Delete Post
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenPostMenuId(null);
+                                  if (navigator.clipboard) {
+                                    navigator.clipboard.writeText(post.media_url || window.location.href);
+                                  }
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-gray-700 hover:bg-gray-50 transition-colors font-medium text-left cursor-pointer"
+                              >
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                </svg>
+                                Copy Link
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -4043,38 +4154,64 @@ export default function HomePage() {
                           }
                         }
 
-                        // 1. YouTube Clip
+                        // 1. YouTube Clip (with top blue card if quote/note present)
                         if (ytClip) {
+                          const hasHeader = Boolean(quote || note || (post.hashtags && post.hashtags.length > 0));
                           return (
-                            <div className="space-y-3">
-                              {(quote || note) && (
-                                <div className="text-[15px] font-medium text-[#202020] leading-relaxed">
-                                  {quote && !quote.startsWith('#') && (
-                                    <p className="font-semibold text-gray-900 border-l-2 border-blue-500 pl-3 mb-2">"{quote}"</p>
-                                  )}
-                                  {note && <p className="whitespace-pre-wrap">{note}</p>}
-                                  {post.hashtags && post.hashtags.length > 0 && <p className="mt-1 text-[#509FC6]">{post.hashtags.join(' ')}</p>}
+                            <div className="w-full rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+                              {hasHeader && (
+                                <div className="bg-[#3297EE] p-5 text-white">
+                                  <div className="flex-1 min-w-0 space-y-3">
+                                    {quote && (
+                                      <p className="text-[15px] font-semibold leading-relaxed whitespace-pre-wrap tracking-normal">
+                                        "{quote}"
+                                      </p>
+                                    )}
+                                    {note && (
+                                      <p className="text-[14px] leading-relaxed text-white/95 font-medium whitespace-pre-wrap">
+                                        {note}
+                                      </p>
+                                    )}
+                                    {post.hashtags && post.hashtags.length > 0 && (
+                                      <p className="text-white/80 text-[13px] pt-0.5">
+                                        {post.hashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' ')}
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
                               )}
-                              <YouTubeClipPlayer key={post.id} postId={post.id} clip={ytClip} mediaUrl={post.media_url} />
+                              <YouTubeClipPlayer key={post.id} postId={post.id} clip={ytClip} mediaUrl={post.media_url} hasTopHeader={hasHeader} />
                             </div>
                           );
                         }
 
-                        // 2. Audio Clip
+                        // 2. Audio Clip (with top blue card if quote/note present)
                         if (audioClip) {
+                          const hasHeader = Boolean(quote || note || (post.hashtags && post.hashtags.length > 0));
                           return (
-                            <div className="space-y-3">
-                              {(quote || note) && (
-                                <div className="text-[15px] font-medium text-[#202020] leading-relaxed">
-                                  {quote && !quote.startsWith('#') && (
-                                    <p className="font-semibold text-gray-900 border-l-2 border-blue-500 pl-3 mb-2">"{quote}"</p>
-                                  )}
-                                  {note && <p className="whitespace-pre-wrap">{note}</p>}
-                                  {post.hashtags && post.hashtags.length > 0 && <p className="mt-1 text-[#509FC6]">{post.hashtags.join(' ')}</p>}
+                            <div className="w-full rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+                              {hasHeader && (
+                                <div className="bg-[#3297EE] p-5 text-white">
+                                  <div className="flex-1 min-w-0 space-y-3">
+                                    {quote && (
+                                      <p className="text-[15px] font-semibold leading-relaxed whitespace-pre-wrap tracking-normal">
+                                        "{quote}"
+                                      </p>
+                                    )}
+                                    {note && (
+                                      <p className="text-[14px] leading-relaxed text-white/95 font-medium whitespace-pre-wrap">
+                                        {note}
+                                      </p>
+                                    )}
+                                    {post.hashtags && post.hashtags.length > 0 && (
+                                      <p className="text-white/80 text-[13px] pt-0.5">
+                                        {post.hashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' ')}
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
                               )}
-                              <AudioClipPlayer key={post.id} postId={post.id} clip={audioClip} mediaUrl={post.media_url} post={post} />
+                              <AudioClipPlayer key={post.id} postId={post.id} clip={audioClip} mediaUrl={post.media_url} post={post} hasTopHeader={hasHeader} />
                             </div>
                           );
                         }
