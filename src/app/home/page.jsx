@@ -1525,6 +1525,18 @@ export default function HomePage() {
         token = urlToken;
         localStorage.setItem('annotated_token', urlToken);
         window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (window.location.hash.includes('access_token=')) {
+        try {
+          const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+          const hashToken = hashParams.get('access_token');
+          if (hashToken) {
+            token = hashToken;
+            localStorage.setItem('annotated_token', hashToken);
+            const refreshToken = hashParams.get('refresh_token');
+            if (refreshToken) localStorage.setItem('annotated_refresh_token', refreshToken);
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch (_) {}
       }
     }
 

@@ -57,6 +57,37 @@ export default function FigmaLandingPage() {
     if (token) {
       setIsLoggedIn(true);
     }
+
+    // Check if user returned from Supabase OAuth with tokens in hash or code
+    if (typeof window !== 'undefined') {
+      const hasHashToken = window.location.hash.includes('access_token=');
+      const hasCode = window.location.search.includes('code=');
+
+      if (hasHashToken) {
+        try {
+          const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+          if (accessToken) {
+            localStorage.setItem('annotated_token', accessToken);
+            if (refreshToken) localStorage.setItem('annotated_refresh_token', refreshToken);
+            window.location.href = '/home';
+            return;
+          }
+        } catch (_) {}
+      }
+
+      if (hasCode || hasHashToken) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.access_token) {
+            localStorage.setItem('annotated_token', session.access_token);
+            if (session.refresh_token) localStorage.setItem('annotated_refresh_token', session.refresh_token);
+            if (session.user) localStorage.setItem('annotated_user', JSON.stringify(session.user));
+            window.location.href = '/home';
+          }
+        });
+      }
+    }
   }, []);
 
   const handleGoogleOAuth = async () => {
