@@ -58,8 +58,8 @@ async function buildNextExtension() {
   });
   console.log('✅ Bundled content.js -> out/content.js');
 
-  // 3. Copy Manifest V3, options.html, content.css, popup, and icons into out/
-  const staticFiles = ['manifest.json', 'options.html', 'content.css', 'popup.html', 'popup.js', 'popup.css'];
+  // 3. Copy Manifest V3, options.html, options.js, content.css, popup, and icons into out/
+  const staticFiles = ['manifest.json', 'options.html', 'options.js', 'content.css', 'popup.html', 'popup.js', 'popup.css'];
   staticFiles.forEach(file => {
     const srcFile = fs.existsSync(path.join(srcDir, file))
       ? path.join(srcDir, file)
@@ -93,10 +93,26 @@ async function buildNextExtension() {
   console.log('✨ Clean synced out/ to dist/');
 
   // Also sync extension files to workspace root so root extension works
-  ['content.js', 'background.js', 'popup.js', 'popup.html', 'popup.css', 'content.css', 'manifest.json'].forEach(file => {
+  ['content.js', 'background.js', 'popup.js', 'popup.html', 'popup.css', 'content.css', 'manifest.json', 'options.js', 'options.html', 'home.html', 'login.html', 'index.html', '404.html'].forEach(file => {
     const p = path.join(outDir, file);
     if (fs.existsSync(p)) {
       fs.copyFileSync(p, path.join(__dirname, file));
+    }
+  });
+
+  // Sync next_assets to root
+  const rootNextAssets = path.join(__dirname, 'next_assets');
+  const outNextAssets = path.join(outDir, 'next_assets');
+  if (fs.existsSync(outNextAssets)) {
+    fs.cpSync(outNextAssets, rootNextAssets, { recursive: true });
+  }
+
+  // Sync home/, login/, auth/ to root
+  ['home', 'login', 'auth'].forEach(d => {
+    const outD = path.join(outDir, d);
+    const rootD = path.join(__dirname, d);
+    if (fs.existsSync(outD)) {
+      fs.cpSync(outD, rootD, { recursive: true });
     }
   });
   console.log('✨ Synced extension scripts, popup, and manifest to root directory');
@@ -135,6 +151,57 @@ function fixNextUnderscoreDirectories(dir) {
 
   // 4. Ensure directories like out/home/ and out/login/ have an index.html that redirects or opens the HTML page directly
   createDirectoryFallbacks(dir);
+
+  // 5. Externalize all inline scripts across HTML files for Manifest V3 CSP compliance
+  externalizeInlineScripts(dir, dir);
+}
+
+function externalizeInlineScripts(currentDir, rootOutDir) {
+  if (!fs.existsSync(currentDir)) return;
+  const items = fs.readdirSync(currentDir);
+  const chunksDir = path.join(rootOutDir, 'next_assets', 'static', 'chunks');
+  if (!fs.existsSync(chunksDir)) {
+    fs.mkdirSync(chunksDir, { recursive: true });
+  }
+
+  for (const item of items) {
+    const fullPath = path.join(currentDir, item);
+    const stat = fs.statSync(fullPath);
+
+    if (stat.isDirectory()) {
+      externalizeInlineScripts(fullPath, rootOutDir);
+    } else if (item.endsWith('.html')) {
+      let content = fs.readFileSync(fullPath, 'utf8');
+
+      // Match inline script tags without src
+      const inlineScriptRegex = /<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/gi;
+      let scriptIndex = 0;
+      let hasReplacements = false;
+
+      const relPath = path.relative(rootOutDir, fullPath);
+      const safeBase = relPath.replace(/\.html$/i, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      const updatedContent = content.replace(inlineScriptRegex, (match, attrs, scriptBody) => {
+        const trimmed = (scriptBody || '').trim();
+        if (!trimmed) {
+          return ''; // Strip empty scripts
+        }
+
+        const scriptFileName = `inline_${safeBase}_${scriptIndex++}.js`;
+        const scriptFilePath = path.join(chunksDir, scriptFileName);
+        fs.writeFileSync(scriptFilePath, scriptBody, 'utf8');
+        hasReplacements = true;
+
+        const cleanAttrs = attrs ? ` ${attrs.trim()}` : '';
+        return `<script src="/next_assets/static/chunks/${scriptFileName}"${cleanAttrs}></script>`;
+      });
+
+      if (hasReplacements) {
+        fs.writeFileSync(fullPath, updatedContent, 'utf8');
+        console.log(`  ⚡ Externalized ${scriptIndex} inline scripts from: ${path.relative(rootOutDir, fullPath)}`);
+      }
+    }
+  }
 }
 
 function createDirectoryFallbacks(outDir) {
@@ -146,14 +213,12 @@ function createDirectoryFallbacks(outDir) {
     }
     const depth = route.split('/').length;
     const relPrefix = '../'.repeat(depth);
-    const htmlName = route.replace(/\//g, '_') + '.html';
     const targetHtml = path.join(routeDir, 'index.html');
     const redirectContent = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <meta http-equiv="refresh" content="0; url=${relPrefix}${route}.html">
-<script>window.location.replace('${relPrefix}${route}.html');</script>
 <title>Redirecting...</title>
 </head>
 <body style="font-family:sans-serif;text-align:center;padding:50px;">

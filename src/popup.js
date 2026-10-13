@@ -558,19 +558,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 3. If token is available, verify & fetch fresh profile from PostgreSQL /api/auth/me
       if (token) {
         try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 600);
           const resp = await fetch('http://localhost:5000/api/auth/me', {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal
           });
-          const meData = await resp.json();
-          if (meData?.success && meData?.user) {
-            user = meData.user;
-            applyUserData(user);
-            if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-              await chrome.storage.local.set({ annotated_user: user });
+          clearTimeout(timer);
+          if (resp.ok) {
+            const meData = await resp.json();
+            if (meData?.success && meData?.user) {
+              user = meData.user;
+              applyUserData(user);
+              if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+                await chrome.storage.local.set({ annotated_user: user });
+              }
             }
           }
-        } catch (fetchErr) {
-          console.warn('Could not verify token with /api/auth/me:', fetchErr);
+        } catch (_) {
+          // Local backend offline, keep cached user profile silently without logging warning
         }
       }
 

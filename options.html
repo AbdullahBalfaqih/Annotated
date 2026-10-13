@@ -102,26 +102,6 @@
     </div>
   </div>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', async () => {
-      const apiKeyEl = document.getElementById('api-key');
-      const modelEl = document.getElementById('model');
-      const saveBtn = document.getElementById('save-btn');
-      const toastEl = document.getElementById('toast');
-
-      const settings = await chrome.storage.sync.get(['apiKey', 'model']);
-      if (settings.apiKey) apiKeyEl.value = settings.apiKey;
-      if (settings.model) modelEl.value = settings.model;
-
-      saveBtn.addEventListener('click', async () => {
-        await chrome.storage.sync.set({
-          apiKey: apiKeyEl.value.trim(),
-          model: modelEl.value
-        });
-        toastEl.style.display = 'inline';
-        setTimeout(() => toastEl.style.display = 'none', 3000);
-      });
-    });
-  </script>
+  <script src="options.js"></script>
 </body>
 </html>
