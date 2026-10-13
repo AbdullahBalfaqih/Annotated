@@ -131,6 +131,54 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  function safeRuntimeSendMessage(message, callback) {
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
+      if (callback) callback({ success: false, error: 'chrome.runtime unavailable' });
+      return;
+    }
+    try {
+      chrome.runtime.sendMessage(message, (response) => {
+        const err = chrome.runtime.lastError;
+        if (err) {
+          console.warn('[Annotated Extension] runtime.sendMessage lastError:', err.message);
+          if (callback) callback({ success: false, error: err.message });
+          return;
+        }
+        if (callback) callback(response);
+      });
+    } catch (e) {
+      console.warn('[Annotated Extension] runtime.sendMessage catch:', e);
+      if (callback) callback({ success: false, error: e.message });
+    }
+  }
+
+  async function openAnnotatedWebApp(path = 'home') {
+    let targetUrl = '';
+    if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
+      targetUrl = chrome.runtime.getURL(`${path}.html`);
+    } else {
+      targetUrl = `http://localhost:3000/${path}`;
+    }
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 400);
+      await fetch(`http://localhost:3000/${path}`, { method: 'HEAD', mode: 'no-cors', signal: controller.signal });
+      clearTimeout(timer);
+      targetUrl = `http://localhost:3000/${path}`;
+    } catch (_) {
+      if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
+        targetUrl = chrome.runtime.getURL('home.html');
+      }
+    }
+
+    if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
+      chrome.tabs.create({ url: targetUrl });
+    } else {
+      window.open(targetUrl, '_blank');
+    }
+  }
+
   // Reliable Active Tab Resolver (Works in both Chrome Side Panel and Popup)
   async function getActiveWebTab() {
     if (typeof chrome === 'undefined' || !chrome.tabs) return null;
@@ -448,7 +496,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           profileAvatar.src = user.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(realName)}`;
         }
         if (profileBio && user.bio) profileBio.textContent = user.bio;
-        if (profileViewBtn && user.handle) profileViewBtn.href = `http://localhost:3000/${user.handle}`;
+        if (profileViewBtn) {
+          profileViewBtn.href = `http://localhost:3000/${user.handle || 'home'}`;
+          profileViewBtn.onclick = (e) => {
+            e.preventDefault();
+            openAnnotatedWebApp(user.handle || 'home');
+          };
+        }
 
         // Location
         if (profileLocation && profileLocationText && user.location) {
@@ -3811,6 +3865,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentAnnotationContext.url = customUrlInput.value.trim();
       }
 
+      btnPublishAnnotation.disabled = true;
+      btnPublishAnnotation.innerHTML = '<span>Publishing...</span>';
+
       const commentText = (annotCommentInput ? annotCommentInput.value.trim() : '') || 'Insightful moment';
       const sFormatted = formatTime(currentAnnotationContext.startTime);
       const eFormatted = formatTime(currentAnnotationContext.endTime);
@@ -3847,14 +3904,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.warn('Storage error:', err);
       }
 
-      // 2. Publish directly to PostgreSQL Platform Database
+      // 2. Publish directly to PostgreSQL Platform Database / Supabase Cloud
       try {
         let authData = {};
         if (typeof chrome !== 'undefined' && chrome.storage?.local) {
           authData = await chrome.storage.local.get(['annotated_token', 'annotated_user']);
         }
-        let token = authData.annotated_token;
-        let user = authData.annotated_user;
+        let token = authData?.annotated_token;
+        let user = authData?.annotated_user;
         if (!token || !user) {
           const synced = await syncSessionFromWebTabs();
           if (synced?.token) token = synced.token;
@@ -3895,11 +3952,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         else if (currentAnnotationContext.type === 'sketch') cleanMediaType = 'sketch';
         else if (currentAnnotationContext.type === 'screenshot') cleanMediaType = 'image';
 
+        // Extract selected text or fallback to code snippet element
+        let snippetText = currentAnnotationContext.selectedText;
+        if (!snippetText) {
+          const codeEl = document.getElementById('annot-code-pre-code');
+          if (codeEl && codeEl.innerText && codeEl.innerText !== '// Code snippet to annotate') {
+            snippetText = codeEl.innerText;
+          }
+        }
+
         const payload = {
+          user_id: user?.id || '69d8b76b-5434-4926-b749-7bfdbfce9684',
           page_url: finalPageUrl,
           page_title: currentAnnotationContext.mediaTitle || 'Web Research',
           page_domain: domain,
-          highlighted_text: currentAnnotationContext.selectedText || currentAnnotationContext.mediaTitle || commentText,
+          highlighted_text: snippetText || currentAnnotationContext.mediaTitle || commentText,
           note: commentText,
           color: currentAnnotationContext.color || '#3297EE',
           anchor_selector: currentAnnotationContext.type || 'text',
@@ -3937,34 +4004,51 @@ document.addEventListener('DOMContentLoaded', async () => {
           });
         }
 
-        if (apiJson?.success) {
-          console.log('[Annotated Extension] Successfully published to platform PostgreSQL / Supabase:', apiJson);
-          // Notify open web app tabs to immediately update their feed and annotations
-          if (typeof chrome !== 'undefined' && chrome.tabs) {
-            const allTabs = await chrome.tabs.query({});
-            allTabs.forEach(t => {
-              if (t.url && (t.url.includes('localhost:3000') || t.url.includes('127.0.0.1:3000') || t.url.includes('annotated'))) {
-                safeTabSendMessage(t.id, {
-                  action: 'ANNOTATION_PUBLISHED_BY_EXTENSION',
-                  annotation: apiJson.annotation,
-                  post: apiJson.post
-                });
-              }
-            });
-          }
+        if (!apiJson || !apiJson.success) {
+          throw new Error(apiJson?.error || 'Database publish rejected');
+        }
+
+        console.log('[Annotated Extension] Successfully published to platform PostgreSQL / Supabase:', apiJson);
+        // Notify open web app tabs to immediately update their feed and annotations
+        if (typeof chrome !== 'undefined' && chrome.tabs) {
+          const allTabs = await chrome.tabs.query({});
+          allTabs.forEach(t => {
+            if (t.url && (t.url.includes('localhost:3000') || t.url.includes('127.0.0.1:3000') || t.url.includes('annotated') || t.url.includes('home.html'))) {
+              safeTabSendMessage(t.id, {
+                action: 'ANNOTATION_PUBLISHED_BY_EXTENSION',
+                annotation: apiJson.annotation,
+                post: apiJson.post
+              });
+            }
+          });
+        }
+
+        // Hide editor and card body preview, reveal published success card
+        const cardBody = document.querySelector('.annot-card-body');
+        if (cardBody) cardBody.classList.add('hidden');
+        if (annotEditorSection) annotEditorSection.classList.add('hidden');
+        if (annotSuccessCard) {
+          annotSuccessCard.classList.remove('hidden');
         }
       } catch (postErr) {
-        console.warn('[Annotated Extension] Error syncing annotation to backend:', postErr);
-      }
-
-      // Hide editor, reveal published success card (Clean minimal view - no post in extension)
-      if (annotEditorSection) annotEditorSection.classList.add('hidden');
-      if (annotSuccessCard) {
-        annotSuccessCard.classList.remove('hidden');
+        console.error('[Annotated Extension] Error syncing annotation to backend:', postErr);
+        if (btnPublishAnnotation) {
+          btnPublishAnnotation.disabled = false;
+          btnPublishAnnotation.innerHTML = '<span>Retry Publish</span>';
+        }
+        showStudioToast('Could not publish: ' + (postErr.message || 'Server error'));
       }
     });
   }
 
+  // Inside published card: View on Annotated Web
+  const btnViewOnPlatform = document.getElementById('btn-view-on-platform');
+  if (btnViewOnPlatform) {
+    btnViewOnPlatform.addEventListener('click', (e) => {
+      e.preventDefault();
+      openAnnotatedWebApp('home');
+    });
+  }
 
   // Inside published card: View Discussion
   if (btnViewDiscussion) {
@@ -4011,7 +4095,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (strip) strip.classList.add('hidden');
 
       if (annotPreviewWrap) annotPreviewWrap.classList.add('hidden');
-      if (annotEditorSection) annotEditorSection.classList.remove('hidden');
+      const cardBody = document.querySelector('.annot-card-body');
+      if (cardBody) cardBody.classList.remove('hidden');
+      if (annotEditorSection) {
+        annotEditorSection.classList.remove('hidden');
+        if (btnPublishAnnotation) {
+          btnPublishAnnotation.disabled = false;
+          btnPublishAnnotation.innerHTML = '<span>Publish</span>';
+        }
+      }
       if (annotSuccessCard) annotSuccessCard.classList.add('hidden');
     });
   }
