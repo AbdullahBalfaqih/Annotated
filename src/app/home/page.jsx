@@ -8,6 +8,31 @@ const SUPABASE_URL = 'https://aaemqxlfzkkgchwhcisw.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_171z2Negckh-UAFXHg91cA_YImBzFxn';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+function parsePostQuoteAndNote(content) {
+  if (!content) return { quote: null, note: '' };
+
+  const trimmed = content.trim();
+
+  // Pattern 1: Starts with quote marks: "..." or “...” followed by optional newline/space and comment
+  const quoteMatch = trimmed.match(/^["“]([\s\S]+?)["”](?:\s*[\n\r]+\s*|\s+)?([\s\S]*)$/);
+  if (quoteMatch) {
+    const quote = quoteMatch[1].trim();
+    const note = quoteMatch[2].trim();
+    return { quote, note };
+  }
+
+  // Pattern 2: Explicit double newline separating quote and comment
+  if (trimmed.includes('\n\n')) {
+    const parts = trimmed.split(/\n\n+/);
+    return {
+      quote: parts[0].replace(/^["“]|["”]$/g, '').trim(),
+      note: parts.slice(1).join('\n\n').trim()
+    };
+  }
+
+  return { quote: null, note: trimmed };
+}
+
 function YouTubeClipPlayer({ postId, clip, mediaUrl }) {
   const containerId = `yt-player-${postId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
   const playerRef = useRef(null);
@@ -955,6 +980,8 @@ export default function HomePage() {
   const [codeReviewModal, setCodeReviewModal] = useState(null);
   const [bookmarked, setBookmarked] = useState(false);
   const [postText, setPostText] = useState('');
+  const [quoteText, setQuoteText] = useState('');
+  const [showQuoteInput, setShowQuoteInput] = useState(false);
   const [mediaUrl, setMediaUrl] = useState(null);
   const [postToDelete, setPostToDelete] = useState(null);
   const [promptModal, setPromptModal] = useState(null);
@@ -2081,8 +2108,15 @@ export default function HomePage() {
       if (typeof window !== 'undefined') window.location.href = getLoginTarget();
       return;
     }
-    if (!postText.trim() || isPosting) return;
+    const trimmedPost = postText.trim();
+    const trimmedQuote = quoteText.trim();
+    if ((!trimmedPost && !trimmedQuote) || isPosting) return;
     setIsPosting(true);
+
+    let finalContent = trimmedPost;
+    if (trimmedQuote) {
+      finalContent = trimmedPost ? `"${trimmedQuote}"\n\n${trimmedPost}` : `"${trimmedQuote}"`;
+    }
 
     const token = localStorage.getItem('annotated_token');
     const newPostItem = {
@@ -2091,9 +2125,10 @@ export default function HomePage() {
       author_handle: currentUser.handle,
       author_avatar: currentUser.avatar_url,
       time: 'Just now',
-      content: postText.trim(),
+      content: finalContent,
       hashtags: ['#Annotated', '#WorkspaceNotes'],
       media_url: mediaUrl,
+      media_type: mediaUrl ? 'image' : 'none',
       likes_count: 0,
       is_liked: false,
       comments: []
@@ -2101,6 +2136,8 @@ export default function HomePage() {
 
     setPosts(prev => [newPostItem, ...prev]);
     setPostText('');
+    setQuoteText('');
+    setShowQuoteInput(false);
     setMediaUrl(null);
 
     if (token) {
@@ -3699,7 +3736,30 @@ export default function HomePage() {
             <section className="w-full lg:w-[527px] flex-1">
               <div className="sticky top-6 z-30 bg-[#F8F9FA] pb-2 mb-4 space-y-4 before:content-[''] before:absolute before:-top-6 before:left-0 before:right-0 before:h-6 before:bg-[#F8F9FA]">
                 {/* Post Creation Card */}
-                <div className="bg-[#3297EE] rounded-[21px] px-5 py-7 shadow-md space-y-5 text-white">
+                <div className="bg-[#3297EE] rounded-[21px] px-5 py-7 shadow-md space-y-4 text-white">
+                  {/* Optional Quote Snippet Box */}
+                  {showQuoteInput && (
+                    <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white/20 border border-white/30 backdrop-blur-sm transition-all animate-fadeIn">
+                      <span className="text-white font-serif text-lg leading-none font-bold select-none">“</span>
+                      <input
+                        type="text"
+                        value={quoteText}
+                        onChange={(e) => setQuoteText(e.target.value)}
+                        placeholder="Quote text from tweet, website, or research paper..."
+                        className="flex-1 bg-transparent text-[12px] font-medium text-white placeholder-white/70 focus:outline-none"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { setShowQuoteInput(false); setQuoteText(''); }}
+                        className="text-white/70 hover:text-white text-xs px-1 cursor-pointer"
+                        title="Remove quote"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+
                   {/* Input Row */}
                   <div className="flex items-center gap-3.5">
                     <img
@@ -3717,13 +3777,13 @@ export default function HomePage() {
                         onChange={(e) => setPostText(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleCreatePost()}
                         onPaste={handlePaste}
-                        placeholder="Share an annotation, idea, or AI summary (Press Enter)..."
+                        placeholder={showQuoteInput ? "Write your comment on this quote..." : "Share an annotation, idea, or AI summary (Press Enter)..."}
                         className="w-full bg-transparent text-[12px] font-normal text-[#202020] placeholder-[#929292] focus:outline-none"
                       />
                       <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
                       <button
                         onClick={handleCreatePost}
-                        disabled={!postText.trim() || isPosting}
+                        disabled={(!postText.trim() && !quoteText.trim()) || isPosting}
                         title="Share to feed"
                         className="p-1 text-[#3297EE] hover:text-blue-700 transition-colors cursor-pointer disabled:opacity-30"
                       >
@@ -3760,7 +3820,20 @@ export default function HomePage() {
 
                   {/* Media Actions & Visibility Row */}
                   <div className="flex items-center justify-between pt-1">
-                    <div className="flex items-center gap-5 sm:gap-6">
+                    <div className="flex items-center gap-4 sm:gap-5">
+                      <button
+                        type="button"
+                        onClick={() => setShowQuoteInput(!showQuoteInput)}
+                        className={`flex items-center gap-1.5 text-[12px] font-medium transition-all cursor-pointer ${showQuoteInput ? 'text-white underline font-bold' : 'text-white hover:opacity-80'}`}
+                        title="Add Quote"
+                      >
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
+                          <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
+                        </svg>
+                        <span>Quote</span>
+                      </button>
+
                       <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-[12px] font-medium text-white hover:opacity-80 transition-opacity cursor-pointer">
                         <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" /></svg>
                         <span>Screenshot</span>
@@ -3868,97 +3941,239 @@ export default function HomePage() {
                       {(() => {
                         const ytClip = post.media_url ? parseYouTubeClip(post.media_url) : null;
                         const audioClip = post.media_url ? parseAudioClip(post.media_url, post) : null;
-                        const isImage = post.media_url ? isDirectImageUrl(post.media_url) : false;
+                        const isImage = (post.media_type === 'image' || isDirectImageUrl(post.media_url)) && !ytClip && !audioClip;
                         const isWebArticle = post.media_url && !ytClip && !audioClip && !isImage;
 
-                        return (
-                          <div className="space-y-3">
-                            {!isWebArticle && (
-                              <div className="text-[15px] font-medium text-[#202020] leading-relaxed">
-                                {isCodeContent(post.content, post.media_url) ? (
-                                  <PostCodeBlock content={post.content} mediaUrl={post.media_url} onOpenReviewModal={setCodeReviewModal} />
-                                ) : (
-                                  <p>{post.content}</p>
-                                )}
-                                {post.hashtags && post.hashtags.length > 0 && (
-                                  <p className="mt-1 text-[#509FC6]">
-                                    {post.hashtags.join(' ')}
-                                  </p>
-                                )}
-                              </div>
-                            )}
+                        const { quote, note } = parsePostQuoteAndNote(post.content);
 
-                            {post.media_url && (() => {
-                              if (ytClip) {
-                                return <YouTubeClipPlayer key={post.id} postId={post.id} clip={ytClip} mediaUrl={post.media_url} />;
-                              }
-                              if (audioClip) {
-                                return <AudioClipPlayer key={post.id} postId={post.id} clip={audioClip} mediaUrl={post.media_url} post={post} />;
-                              }
-                              if (isImage) {
-                                return (
-                                  <a href={post.media_url} target="_blank" rel="noopener noreferrer" className="block w-full rounded-[14px] overflow-hidden bg-gray-100 border border-gray-200/90 relative group cursor-pointer" title="Click to view original media">
-                                    <img src={post.media_url} alt="Original Visual" className="w-full h-auto object-cover max-h-[380px] group-hover:opacity-95 transition-opacity" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                                    <div className="absolute top-2.5 right-2.5 px-2.5 py-1 bg-black/60 backdrop-blur-md rounded-lg text-[11px] text-white flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <span>Open original</span> ↗
-                                    </div>
-                                  </a>
-                                );
-                              }
-                              if (isWebArticle) {
-                                let domain = 'Original Source';
-                                try {
-                                  domain = new URL(post.media_url).hostname.replace(/^www\./, '');
-                                } catch (_) {}
+                        // Look up source page info if present in user annotations
+                        let sourceInfo = null;
+                        if (userAnnotations && userAnnotations.length > 0) {
+                          const matchAnn = userAnnotations.find(a => {
+                            if (quote && a.highlighted_text && (a.highlighted_text.includes(quote.substring(0, 30)) || quote.includes(a.highlighted_text.substring(0, 30)))) return true;
+                            if (note && a.note && a.note === note) return true;
+                            return false;
+                          });
+                          if (matchAnn) {
+                            let domain = matchAnn.page_domain || '';
+                            try { if (!domain && matchAnn.page_url) domain = new URL(matchAnn.page_url).hostname.replace(/^www\./, ''); } catch (_) {}
+                            sourceInfo = {
+                              url: matchAnn.page_url,
+                              title: matchAnn.page_title,
+                              domain: domain || 'Original Source',
+                              favicon: matchAnn.page_favicon
+                            };
+                          }
+                        }
 
-                                return (
-                                  <div className="w-full rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-                                    {/* Top Blue Part (User's words) */}
-                                    {(post.content || (post.hashtags && post.hashtags.length > 0)) && (
-                                      <div className="bg-[#3297EE] p-5 text-white">
-                                        <div className="flex-1 min-w-0">
-                                          {post.content && (
-                                            isCodeContent(post.content, post.media_url) ? (
-                                              <PostCodeBlock content={post.content} mediaUrl={post.media_url} onOpenReviewModal={setCodeReviewModal} />
-                                            ) : (
-                                              <p className="text-[15px] font-medium leading-relaxed whitespace-pre-wrap">{post.content}</p>
-                                            )
-                                          )}
-                                          {post.hashtags && post.hashtags.length > 0 && (
-                                            <p className="mt-2 text-white/90 text-[13px]">{post.hashtags.join(' ')}</p>
-                                          )}
-                                        </div>
-                                      </div>
+                        // 1. YouTube Clip
+                        if (ytClip) {
+                          return (
+                            <div className="space-y-3">
+                              {(quote || note) && (
+                                <div className="text-[15px] font-medium text-[#202020] leading-relaxed">
+                                  {quote && <p className="font-semibold text-gray-900 border-l-2 border-blue-500 pl-3 mb-2">"{quote}"</p>}
+                                  {note && <p className="whitespace-pre-wrap">{note}</p>}
+                                  {post.hashtags && post.hashtags.length > 0 && <p className="mt-1 text-[#509FC6]">{post.hashtags.join(' ')}</p>}
+                                </div>
+                              )}
+                              <YouTubeClipPlayer key={post.id} postId={post.id} clip={ytClip} mediaUrl={post.media_url} />
+                            </div>
+                          );
+                        }
+
+                        // 2. Audio Clip
+                        if (audioClip) {
+                          return (
+                            <div className="space-y-3">
+                              {(quote || note) && (
+                                <div className="text-[15px] font-medium text-[#202020] leading-relaxed">
+                                  {quote && <p className="font-semibold text-gray-900 border-l-2 border-blue-500 pl-3 mb-2">"{quote}"</p>}
+                                  {note && <p className="whitespace-pre-wrap">{note}</p>}
+                                  {post.hashtags && post.hashtags.length > 0 && <p className="mt-1 text-[#509FC6]">{post.hashtags.join(' ')}</p>}
+                                </div>
+                              )}
+                              <AudioClipPlayer key={post.id} postId={post.id} clip={audioClip} mediaUrl={post.media_url} post={post} />
+                            </div>
+                          );
+                        }
+
+                        // 3. Post with attached image (IMAGE POST) -> Blue Card with quote at top, comment on new line, and attached image below!
+                        if (isImage) {
+                          return (
+                            <div className="w-full rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+                              {/* Top Blue Part (Quote at top, Note below on new line, vibrant blue #3297EE like Image 1) */}
+                              {(quote || note || (post.hashtags && post.hashtags.length > 0)) && (
+                                <div className="bg-[#3297EE] p-5 text-white">
+                                  <div className="flex-1 min-w-0 space-y-3">
+                                    {quote && (
+                                      <p className="text-[15px] font-semibold leading-relaxed whitespace-pre-wrap tracking-normal">
+                                        "{quote}"
+                                      </p>
                                     )}
-                                    
-                                    {/* Bottom White Part (Link footer) */}
-                                    <div className="bg-white p-5 border-t border-gray-50 flex items-center justify-between gap-4">
-                                      <div className="flex items-center gap-3 text-gray-500 truncate mr-4">
-                                        <img
-                                          src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
-                                          alt="favicon"
-                                          className="w-5 h-5 rounded-sm object-contain shrink-0"
-                                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                        />
-                                        <span className="text-[14px] font-medium text-gray-700 truncate">{domain}</span>
-                                      </div>
-                                      
-                                      <a
-                                        href={post.media_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-2 text-[14px] font-semibold text-gray-400 hover:text-[#3297EE] transition-colors group cursor-pointer shrink-0"
-                                      >
-                                        Visit Page 
-                                        <span className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 group-hover:bg-[#3297EE]/10 group-hover:text-[#3297EE] transition-colors">
-                                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                                        </span>
-                                      </a>
-                                    </div>
+                                    {note && (
+                                      <p className="text-[14px] leading-relaxed text-white/95 font-medium whitespace-pre-wrap">
+                                        {note}
+                                      </p>
+                                    )}
+                                    {post.hashtags && post.hashtags.length > 0 && (
+                                      <p className="text-white/80 text-[13px] pt-0.5">
+                                        {post.hashtags.join(' ')}
+                                      </p>
+                                    )}
                                   </div>
-                                );
-                              }
-                            })()}
+                                </div>
+                              )}
+
+                              {/* Attached Visual Image */}
+                              <div className="bg-gray-950 border-t border-blue-400/20 overflow-hidden relative group">
+                                <a href={post.media_url} target="_blank" rel="noopener noreferrer" className="block relative cursor-pointer" title="Click to view original media">
+                                  <img
+                                    src={post.media_url}
+                                    alt="Attached Visual"
+                                    className="w-full h-auto object-cover max-h-[420px] group-hover:opacity-95 transition-opacity"
+                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                  />
+                                  <div className="absolute top-2.5 right-2.5 px-2.5 py-1 bg-black/60 backdrop-blur-md rounded-lg text-[11px] text-white flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span>Open original</span> ↗
+                                  </div>
+                                </a>
+                              </div>
+
+                              {/* Source Link Footer (if matching page source exists) */}
+                              {sourceInfo && (
+                                <div className="bg-white p-4 border-t border-gray-100 flex items-center justify-between gap-4">
+                                  <div className="flex items-center gap-3 text-gray-500 truncate mr-4">
+                                    <img
+                                      src={sourceInfo.favicon || `https://www.google.com/s2/favicons?domain=${sourceInfo.domain}&sz=64`}
+                                      alt="favicon"
+                                      className="w-5 h-5 rounded-sm object-contain shrink-0"
+                                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                    />
+                                    <span className="text-[14px] font-medium text-gray-700 truncate">{sourceInfo.title || sourceInfo.domain}</span>
+                                  </div>
+                                  {sourceInfo.url && (
+                                    <a
+                                      href={sourceInfo.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-2 text-[14px] font-semibold text-gray-400 hover:text-[#3297EE] transition-colors group cursor-pointer shrink-0"
+                                    >
+                                      Visit Page 
+                                      <span className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 group-hover:bg-[#3297EE]/10 group-hover:text-[#3297EE] transition-colors">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                      </span>
+                                    </a>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        // 4. Web Article Card
+                        if (isWebArticle) {
+                          let domain = 'Original Source';
+                          try {
+                            domain = new URL(post.media_url).hostname.replace(/^www\./, '');
+                          } catch (_) {}
+
+                          return (
+                            <div className="w-full rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+                              {/* Top Blue Part (User's words) */}
+                              {(post.content || (post.hashtags && post.hashtags.length > 0)) && (
+                                <div className="bg-[#3297EE] p-5 text-white">
+                                  <div className="flex-1 min-w-0 space-y-3">
+                                    {quote ? (
+                                      <p className="text-[15px] font-semibold leading-relaxed whitespace-pre-wrap tracking-normal">
+                                        "{quote}"
+                                      </p>
+                                    ) : (
+                                      isCodeContent(post.content, post.media_url) ? (
+                                        <PostCodeBlock content={post.content} mediaUrl={post.media_url} onOpenReviewModal={setCodeReviewModal} />
+                                      ) : (
+                                        <p className="text-[15px] font-medium leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                                      )
+                                    )}
+
+                                    {quote && note ? (
+                                      <p className="text-[14px] leading-relaxed text-white/95 font-medium whitespace-pre-wrap">
+                                        {note}
+                                      </p>
+                                    ) : null}
+
+                                    {post.hashtags && post.hashtags.length > 0 && (
+                                      <p className="mt-2 text-white/90 text-[13px]">{post.hashtags.join(' ')}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Bottom White Part (Link footer) */}
+                              <div className="bg-white p-5 border-t border-gray-50 flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-3 text-gray-500 truncate mr-4">
+                                  <img
+                                    src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
+                                    alt="favicon"
+                                    className="w-5 h-5 rounded-sm object-contain shrink-0"
+                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                  />
+                                  <span className="text-[14px] font-medium text-gray-700 truncate">{domain}</span>
+                                </div>
+                                
+                                <a
+                                  href={post.media_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 text-[14px] font-semibold text-gray-400 hover:text-[#3297EE] transition-colors group cursor-pointer shrink-0"
+                                >
+                                  Visit Page 
+                                  <span className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 group-hover:bg-[#3297EE]/10 group-hover:text-[#3297EE] transition-colors">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                  </span>
+                                </a>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // 5. Plain Text or Quote-Only Post
+                        if (quote) {
+                          return (
+                            <div className="w-full rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+                              <div className="bg-[#3297EE] p-5 text-white">
+                                <div className="flex-1 min-w-0 space-y-3">
+                                  <p className="text-[15px] font-semibold leading-relaxed whitespace-pre-wrap tracking-normal">
+                                    "{quote}"
+                                  </p>
+                                  {note && (
+                                    <p className="text-[14px] leading-relaxed text-white/95 font-medium whitespace-pre-wrap">
+                                      {note}
+                                    </p>
+                                  )}
+                                  {post.hashtags && post.hashtags.length > 0 && (
+                                    <p className="text-white/80 text-[13px] pt-0.5">
+                                      {post.hashtags.join(' ')}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="text-[15px] font-medium text-[#202020] leading-relaxed">
+                            {isCodeContent(post.content, post.media_url) ? (
+                              <PostCodeBlock content={post.content} mediaUrl={post.media_url} onOpenReviewModal={setCodeReviewModal} />
+                            ) : (
+                              <p className="whitespace-pre-wrap">{post.content}</p>
+                            )}
+                            {post.hashtags && post.hashtags.length > 0 && (
+                              <p className="mt-1 text-[#509FC6]">
+                                {post.hashtags.join(' ')}
+                              </p>
+                            )}
                           </div>
                         );
                       })()}
