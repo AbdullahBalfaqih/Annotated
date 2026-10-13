@@ -56,31 +56,42 @@ export default function LoginPage() {
       return;
     }
 
+    const getHomeTarget = () => {
+      if (typeof window === 'undefined') return '/home';
+      const isExtensionOrFile =
+        window.location.protocol === 'chrome-extension:' ||
+        window.location.protocol === 'file:' ||
+        window.location.pathname.endsWith('.html');
+      return isExtensionOrFile ? './home.html' : '/home';
+    };
+
     // Handle Supabase auth callback
     const handleAuthCallback = async () => {
       const { data: { session }, error } = await supabase.auth.getSession();
-
-      const homeTarget = (typeof window !== 'undefined' && window.location.hostname === 'localhost' && !window.location.pathname.endsWith('.html')) ? '/home' : './home.html';
 
       if (session?.access_token) {
         localStorage.setItem('annotated_token', session.access_token);
         localStorage.setItem('annotated_refresh_token', session.refresh_token || '');
         
-        try {
-          const meRes = await fetch('http://localhost:5000/api/auth/me', {
-            headers: { 'Authorization': `Bearer ${session.access_token}` }
-          });
-          const meData = await meRes.json();
-          if (meData?.success && meData.user) {
-            localStorage.setItem('annotated_user', JSON.stringify(meData.user));
-          } else {
+        if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+          try {
+            const meRes = await fetch('http://localhost:5000/api/auth/me', {
+              headers: { 'Authorization': `Bearer ${session.access_token}` }
+            });
+            const meData = await meRes.json();
+            if (meData?.success && meData.user) {
+              localStorage.setItem('annotated_user', JSON.stringify(meData.user));
+            } else {
+              localStorage.setItem('annotated_user', JSON.stringify(session.user));
+            }
+          } catch (_) {
             localStorage.setItem('annotated_user', JSON.stringify(session.user));
           }
-        } catch (_) {
+        } else {
           localStorage.setItem('annotated_user', JSON.stringify(session.user));
         }
 
-        window.location.href = homeTarget;
+        window.location.href = getHomeTarget();
       }
     };
 
@@ -88,26 +99,29 @@ export default function LoginPage() {
 
     // Also listen for auth state changes (after OAuth redirect)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const homeTarget = (typeof window !== 'undefined' && window.location.hostname === 'localhost' && !window.location.pathname.endsWith('.html')) ? '/home' : './home.html';
       if (event === 'SIGNED_IN' && session) {
         localStorage.setItem('annotated_token', session.access_token);
         localStorage.setItem('annotated_refresh_token', session.refresh_token || '');
         
-        try {
-          const meRes = await fetch('http://localhost:5000/api/auth/me', {
-            headers: { 'Authorization': `Bearer ${session.access_token}` }
-          });
-          const meData = await meRes.json();
-          if (meData?.success && meData.user) {
-            localStorage.setItem('annotated_user', JSON.stringify(meData.user));
-          } else {
+        if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+          try {
+            const meRes = await fetch('http://localhost:5000/api/auth/me', {
+              headers: { 'Authorization': `Bearer ${session.access_token}` }
+            });
+            const meData = await meRes.json();
+            if (meData?.success && meData.user) {
+              localStorage.setItem('annotated_user', JSON.stringify(meData.user));
+            } else {
+              localStorage.setItem('annotated_user', JSON.stringify(session.user));
+            }
+          } catch (_) {
             localStorage.setItem('annotated_user', JSON.stringify(session.user));
           }
-        } catch (_) {
+        } else {
           localStorage.setItem('annotated_user', JSON.stringify(session.user));
         }
 
-        window.location.href = homeTarget;
+        window.location.href = getHomeTarget();
       }
     });
 

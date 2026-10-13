@@ -1323,7 +1323,11 @@ export default function HomePage() {
   // Helper for dynamic login route
   const getLoginTarget = (query = '') => {
     if (typeof window === 'undefined') return '/login' + (query ? `?${query}` : '');
-    const base = (window.location.hostname === 'localhost' && !window.location.pathname.endsWith('.html')) ? '/login' : './login.html';
+    const isExtensionOrFile =
+      window.location.protocol === 'chrome-extension:' ||
+      window.location.protocol === 'file:' ||
+      window.location.pathname.endsWith('.html');
+    const base = isExtensionOrFile ? './login.html' : '/login';
     return query ? `${base}?${query}` : base;
   };
 

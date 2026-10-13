@@ -793,7 +793,7 @@ export default function FigmaLandingPage() {
             {/* Pages Column */}
             <div className="flex flex-col gap-2.5">
               <span className="text-black font-medium">Pages</span>
-              <a href="./home.html" className="text-[#2475FC] hover:underline">Home</a>
+              <a href="/home" className="text-[#2475FC] hover:underline">Home</a>
               <a href="#download" className="text-[#666666] hover:text-black">Extension</a>
               <a href="#contact" className="text-[#666666] hover:text-black">Contact</a>
             </div>
