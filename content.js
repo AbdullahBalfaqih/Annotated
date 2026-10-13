@@ -1321,6 +1321,7 @@ ${translated}`,
     let inpageComposerEl = null;
     let currentSelectionText = "";
     let isComposerOpen = false;
+    let isCropperOpen = false;
     function initInPageTextAnnotator() {
       document.addEventListener("mouseup", handleTextSelection);
       document.addEventListener("keyup", (e) => {
@@ -1329,6 +1330,9 @@ ${translated}`,
         }
       });
       document.addEventListener("mousedown", (e) => {
+        if (isCropperOpen) return;
+        const cropperModal = document.getElementById("annotated-cropper-modal");
+        if (cropperModal && (cropperModal === e.target || cropperModal.contains(e.target))) return;
         if (floatingBubbleEl && floatingBubbleEl.contains(e.target)) return;
         if (inpageComposerEl && inpageComposerEl.contains(e.target)) return;
         hideFloatingBubble();
@@ -1338,7 +1342,7 @@ ${translated}`,
       });
     }
     function handleTextSelection() {
-      if (isComposerOpen) return;
+      if (isComposerOpen || isCropperOpen) return;
       setTimeout(() => {
         const sel = window.getSelection();
         if (!sel || sel.isCollapsed) {
@@ -1401,6 +1405,507 @@ ${translated}`,
         floatingBubbleEl.style.display = "none";
       }
     }
+    function openImageCropper(initialDataUrl, onApply, onCancel) {
+      const existing = document.getElementById("annotated-cropper-modal");
+      if (existing) existing.remove();
+      isCropperOpen = true;
+      let currentDataUrl = initialDataUrl;
+      let currentAspectRatio = "free";
+      const modal = document.createElement("div");
+      modal.id = "annotated-cropper-modal";
+      modal.style.cssText = `
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      width: 100vw; height: 100vh;
+      z-index: 2147483647;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #F8FAFC;
+      user-select: none;
+      box-sizing: border-box;
+      overflow: hidden;
+    `;
+      modal.addEventListener("mousedown", (e) => e.stopPropagation());
+      modal.addEventListener("mouseup", (e) => e.stopPropagation());
+      modal.addEventListener("click", (e) => e.stopPropagation());
+      modal.innerHTML = `
+      <style>
+        #annotated-cropper-modal * { box-sizing: border-box; }
+        .cropper-handle {
+          position: absolute;
+          width: 14px;
+          height: 14px;
+          background: #FFFFFF;
+          border: 2px solid #2563EB;
+          border-radius: 2px;
+          z-index: 15;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+        }
+        .cropper-handle.nw { top: -7px; left: -7px; cursor: nwse-resize; }
+        .cropper-handle.ne { top: -7px; right: -7px; cursor: nesw-resize; }
+        .cropper-handle.se { bottom: -7px; right: -7px; cursor: nwse-resize; }
+        .cropper-handle.sw { bottom: -7px; left: -7px; cursor: nesw-resize; }
+        .cropper-handle.n  { top: -7px; left: calc(50% - 7px); cursor: ns-resize; }
+        .cropper-handle.s  { bottom: -7px; left: calc(50% - 7px); cursor: ns-resize; }
+        .cropper-handle.w  { top: calc(50% - 7px); left: -7px; cursor: ew-resize; }
+        .cropper-handle.e  { top: calc(50% - 7px); right: -7px; cursor: ew-resize; }
+        .cropper-btn-pill {
+          background: #1E293B;
+          color: #E2E8F0;
+          border: 1px solid #334155;
+          padding: 6px 14px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          transition: all 0.15s ease;
+        }
+        .cropper-btn-pill:hover {
+          background: #334155;
+          color: #FFFFFF;
+        }
+        .cropper-btn-pill.active {
+          background: #2563EB;
+          border-color: #2563EB;
+          color: #FFFFFF;
+        }
+      </style>
+
+      <!-- Cropper Top Header -->
+      <div style="height: 54px; padding: 0 20px; border-bottom: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: #0B1120;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 28px; height: 28px; border-radius: 6px; background: rgba(37,99,235,0.25); border: 1px solid rgba(37,99,235,0.4); display: flex; align-items: center; justify-content: center; color: #60A5FA;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"/>
+              <path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"/>
+            </svg>
+          </div>
+          <div>
+            <div style="font-size: 14px; font-weight: 600; color: #FFFFFF;">Crop & Edit Screenshot</div>
+            <div style="font-size: 11px; color: #94A3B8;">Select an area, then click "Confirm Crop" or double-click to apply</div>
+          </div>
+        </div>
+
+        <!-- Center Tool Presets -->
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button class="cropper-btn-pill" id="cropper-btn-rotate" title="Rotate 90 degrees">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            <span>Rotate 90\xB0</span>
+          </button>
+          <div style="width: 1px; height: 18px; background: rgba(255,255,255,0.15); margin: 0 3px;"></div>
+          <button class="cropper-btn-pill active" id="cropper-ratio-free">Free</button>
+          <button class="cropper-btn-pill" id="cropper-ratio-16-9">16:9</button>
+          <button class="cropper-btn-pill" id="cropper-ratio-4-3">4:3</button>
+          <button class="cropper-btn-pill" id="cropper-ratio-1-1">1:1</button>
+          <div style="width: 1px; height: 18px; background: rgba(255,255,255,0.15); margin: 0 3px;"></div>
+          <button class="cropper-btn-pill" id="cropper-btn-new-sel" title="Draw a new selection rectangle">
+            <span>+ New Selection</span>
+          </button>
+          <button class="cropper-btn-pill" id="cropper-btn-reset" title="Select entire image">Full Image</button>
+        </div>
+
+        <!-- Right Action Buttons -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="cropper-btn-pill" id="cropper-btn-cancel" style="background: transparent; border-color: rgba(255,255,255,0.2);">\u2715 Cancel (Esc)</button>
+          <button class="cropper-btn-pill" id="cropper-btn-apply" style="background: #16A34A; border-color: #16A34A; font-weight: 700; padding: 6px 18px; box-shadow: 0 3px 12px rgba(22,163,74,0.4);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>\u2713 Save & Crop (Enter)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Workspace -->
+      <div id="cropper-workspace" style="flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 20px;">
+        <!-- Top Workspace Guidance Pill -->
+        <div style="position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,0.88); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.15); border-radius: 9999px; padding: 6px 20px; font-size: 12px; color: #E2E8F0; z-index: 30; pointer-events: none; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);">
+          <span style="color: #60A5FA;">\u2702\uFE0F</span>
+          <span>Drag handles to resize \u2022 Click <b>\u2713 Confirm Crop</b> or press <b>Enter</b> \u2022 Double-click inside to apply</span>
+        </div>
+
+        <div id="cropper-stage" style="position: relative; display: inline-block; box-shadow: 0 12px 40px rgba(0,0,0,0.7); border-radius: 4px; overflow: visible; max-width: 100%; max-height: 100%;">
+          <img id="cropper-img" src="${currentDataUrl}" style="display: block; max-width: calc(100vw - 60px); max-height: calc(100vh - 120px); pointer-events: none; user-select: none;" />
+          
+          <!-- 4 Dark Dimming Overlays (Clicking them starts a NEW selection box immediately!) -->
+          <div id="overlay-top" style="position: absolute; top: 0; left: 0; width: 100%; background: rgba(15,23,42,0.68); cursor: crosshair; z-index: 5;"></div>
+          <div id="overlay-bottom" style="position: absolute; left: 0; width: 100%; background: rgba(15,23,42,0.68); cursor: crosshair; z-index: 5;"></div>
+          <div id="overlay-left" style="position: absolute; left: 0; background: rgba(15,23,42,0.68); cursor: crosshair; z-index: 5;"></div>
+          <div id="overlay-right" style="position: absolute; right: 0; background: rgba(15,23,42,0.68); cursor: crosshair; z-index: 5;"></div>
+
+          <!-- Crop Box Frame -->
+          <div id="cropper-box" style="position: absolute; border: 2px solid #3B82F6; cursor: move; z-index: 12;" title="Double-click to apply crop (or press Enter)">
+            <!-- Rule of Thirds Grid -->
+            <div style="position: absolute; inset: 0; pointer-events: none; display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr;">
+              <div style="border-right: 1px dashed rgba(255,255,255,0.35); border-bottom: 1px dashed rgba(255,255,255,0.35);"></div>
+              <div style="border-right: 1px dashed rgba(255,255,255,0.35); border-bottom: 1px dashed rgba(255,255,255,0.35);"></div>
+              <div style="border-bottom: 1px dashed rgba(255,255,255,0.35);"></div>
+              <div style="border-right: 1px dashed rgba(255,255,255,0.35); border-bottom: 1px dashed rgba(255,255,255,0.35);"></div>
+              <div style="border-right: 1px dashed rgba(255,255,255,0.35); border-bottom: 1px dashed rgba(255,255,255,0.35);"></div>
+              <div style="border-bottom: 1px dashed rgba(255,255,255,0.35);"></div>
+              <div style="border-right: 1px dashed rgba(255,255,255,0.35);"></div>
+              <div style="border-right: 1px dashed rgba(255,255,255,0.35);"></div>
+              <div></div>
+            </div>
+
+            <!-- Floating Quick Action Buttons Directly on/in the Box! -->
+            <div id="cropper-floating-toolbar" style="position: absolute; bottom: 8px; right: 8px; display: flex; align-items: center; gap: 8px; z-index: 30; background: rgba(11, 17, 32, 0.95); backdrop-filter: blur(8px); padding: 5px 12px; border-radius: 9999px; box-shadow: 0 8px 24px rgba(0,0,0,0.65); border: 1.5px solid rgba(59, 130, 246, 0.4); pointer-events: auto;">
+              <span id="cropper-dim-badge" style="color: #94A3B8; font-size: 11px; font-weight: 600; padding-right: 6px; border-right: 1px solid rgba(255,255,255,0.2); white-space: nowrap;">0 \xD7 0 px</span>
+              <button id="float-btn-apply" type="button" style="background: #16A34A; color: #FFFFFF; border: none; padding: 6px 16px; border-radius: 9999px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 10px rgba(22,163,74,0.5); transition: all 0.15s ease;" title="Confirm and crop selected area">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>\u2713 Confirm Crop</span>
+              </button>
+              <button id="float-btn-full" type="button" style="background: #1E293B; color: #CBD5E1; border: 1px solid #334155; padding: 5px 10px; border-radius: 9999px; font-size: 11px; font-weight: 500; cursor: pointer;" title="Select entire image">
+                <span>Full Image</span>
+              </button>
+              <button id="float-btn-cancel" type="button" style="background: transparent; color: #94A3B8; border: none; padding: 5px 8px; border-radius: 9999px; font-size: 11px; cursor: pointer;" title="Cancel cropping">
+                <span>\u2715 Cancel</span>
+              </button>
+            </div>
+
+            <!-- 8 Resize Handles -->
+            <div class="cropper-handle nw" data-handle="nw"></div>
+            <div class="cropper-handle ne" data-handle="ne"></div>
+            <div class="cropper-handle se" data-handle="se"></div>
+            <div class="cropper-handle sw" data-handle="sw"></div>
+            <div class="cropper-handle n"  data-handle="n"></div>
+            <div class="cropper-handle s"  data-handle="s"></div>
+            <div class="cropper-handle w"  data-handle="w"></div>
+            <div class="cropper-handle e"  data-handle="e"></div>
+          </div>
+        </div>
+      </div>
+    `;
+      document.body.appendChild(modal);
+      const img = modal.querySelector("#cropper-img");
+      const stage = modal.querySelector("#cropper-stage");
+      const cropBox = modal.querySelector("#cropper-box");
+      const dimBadge = modal.querySelector("#cropper-dim-badge");
+      const floatingToolbar = modal.querySelector("#cropper-floating-toolbar");
+      const overlayTop = modal.querySelector("#overlay-top");
+      const overlayBottom = modal.querySelector("#overlay-bottom");
+      const overlayLeft = modal.querySelector("#overlay-left");
+      const overlayRight = modal.querySelector("#overlay-right");
+      let box = { x: 0, y: 0, w: 0, h: 0 };
+      let isDragging = false;
+      let activeHandle = null;
+      let dragStartX = 0;
+      let dragStartY = 0;
+      let initialBox = { x: 0, y: 0, w: 0, h: 0 };
+      function updateCropBoxDom() {
+        const sw = img.clientWidth || 1;
+        const sh = img.clientHeight || 1;
+        cropBox.style.left = `${box.x}px`;
+        cropBox.style.top = `${box.y}px`;
+        cropBox.style.width = `${box.w}px`;
+        cropBox.style.height = `${box.h}px`;
+        if (overlayTop) {
+          overlayTop.style.top = "0px";
+          overlayTop.style.left = "0px";
+          overlayTop.style.width = `${sw}px`;
+          overlayTop.style.height = `${box.y}px`;
+        }
+        if (overlayBottom) {
+          overlayBottom.style.top = `${box.y + box.h}px`;
+          overlayBottom.style.left = "0px";
+          overlayBottom.style.width = `${sw}px`;
+          overlayBottom.style.height = `${Math.max(0, sh - (box.y + box.h))}px`;
+        }
+        if (overlayLeft) {
+          overlayLeft.style.top = `${box.y}px`;
+          overlayLeft.style.left = "0px";
+          overlayLeft.style.width = `${box.x}px`;
+          overlayLeft.style.height = `${box.h}px`;
+        }
+        if (overlayRight) {
+          overlayRight.style.top = `${box.y}px`;
+          overlayRight.style.left = `${box.x + box.w}px`;
+          overlayRight.style.width = `${Math.max(0, sw - (box.x + box.w))}px`;
+          overlayRight.style.height = `${box.h}px`;
+        }
+        if (floatingToolbar) {
+          if (box.h >= 90 && box.w >= 250) {
+            floatingToolbar.style.top = "auto";
+            floatingToolbar.style.bottom = "8px";
+            floatingToolbar.style.right = "8px";
+          } else if (box.y + box.h + 50 <= sh) {
+            floatingToolbar.style.top = "auto";
+            floatingToolbar.style.bottom = "-46px";
+            floatingToolbar.style.right = "0px";
+          } else if (box.y >= 50) {
+            floatingToolbar.style.bottom = "auto";
+            floatingToolbar.style.top = "-46px";
+            floatingToolbar.style.right = "0px";
+          } else {
+            floatingToolbar.style.top = "auto";
+            floatingToolbar.style.bottom = "8px";
+            floatingToolbar.style.right = "8px";
+          }
+        }
+        const scaleX = (img.naturalWidth || 1) / sw;
+        const scaleY = (img.naturalHeight || 1) / sh;
+        const realW = Math.round(box.w * scaleX);
+        const realH = Math.round(box.h * scaleY);
+        if (dimBadge) dimBadge.textContent = `${realW} \xD7 ${realH} px`;
+      }
+      function initBox(padRatio = 0.05) {
+        const sw = img.clientWidth;
+        const sh = img.clientHeight;
+        if (!sw || !sh) return;
+        let w = sw * (1 - padRatio * 2);
+        let h = sh * (1 - padRatio * 2);
+        if (currentAspectRatio === "16:9") {
+          h = w * (9 / 16);
+          if (h > sh * (1 - padRatio * 2)) {
+            h = sh * (1 - padRatio * 2);
+            w = h * (16 / 9);
+          }
+        } else if (currentAspectRatio === "4:3") {
+          h = w * (3 / 4);
+          if (h > sh * (1 - padRatio * 2)) {
+            h = sh * (1 - padRatio * 2);
+            w = h * (4 / 3);
+          }
+        } else if (currentAspectRatio === "1:1") {
+          const side = Math.min(w, h);
+          w = side;
+          h = side;
+        }
+        box = {
+          x: Math.max(0, (sw - w) / 2),
+          y: Math.max(0, (sh - h) / 2),
+          w: Math.max(30, w),
+          h: Math.max(30, h)
+        };
+        updateCropBoxDom();
+      }
+      if (img.complete) {
+        initBox();
+      } else {
+        img.onload = () => initBox();
+      }
+      const ratioBtns = {
+        "free": modal.querySelector("#cropper-ratio-free"),
+        "16:9": modal.querySelector("#cropper-ratio-16-9"),
+        "4:3": modal.querySelector("#cropper-ratio-4-3"),
+        "1:1": modal.querySelector("#cropper-ratio-1-1")
+      };
+      Object.entries(ratioBtns).forEach(([ratio, btn]) => {
+        if (!btn) return;
+        btn.addEventListener("click", () => {
+          Object.values(ratioBtns).forEach((b) => b?.classList.remove("active"));
+          btn.classList.add("active");
+          currentAspectRatio = ratio;
+          initBox(0.08);
+        });
+      });
+      function setFullImage() {
+        box = { x: 0, y: 0, w: img.clientWidth, h: img.clientHeight };
+        updateCropBoxDom();
+      }
+      const btnReset = modal.querySelector("#cropper-btn-reset");
+      if (btnReset) btnReset.addEventListener("click", setFullImage);
+      const floatBtnFull = modal.querySelector("#float-btn-full");
+      if (floatBtnFull) floatBtnFull.addEventListener("click", setFullImage);
+      const btnNewSel = modal.querySelector("#cropper-btn-new-sel");
+      if (btnNewSel) {
+        btnNewSel.addEventListener("click", () => {
+          box = { x: 0, y: 0, w: 0, h: 0 };
+          updateCropBoxDom();
+        });
+      }
+      const btnRotate = modal.querySelector("#cropper-btn-rotate");
+      if (btnRotate) {
+        btnRotate.addEventListener("click", () => {
+          const tempCanvas = document.createElement("canvas");
+          tempCanvas.width = img.naturalHeight;
+          tempCanvas.height = img.naturalWidth;
+          const tempCtx = tempCanvas.getContext("2d");
+          tempCtx.translate(tempCanvas.width / 2, tempCanvas.height / 2);
+          tempCtx.rotate(90 * Math.PI / 180);
+          tempCtx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+          currentDataUrl = tempCanvas.toDataURL("image/png");
+          img.src = currentDataUrl;
+          img.onload = () => initBox(0.05);
+        });
+      }
+      function onMouseDown(e) {
+        if (e.button !== 0) return;
+        const target = e.target;
+        const stageRect = stage.getBoundingClientRect();
+        const clickX = Math.max(0, Math.min(img.clientWidth, e.clientX - stageRect.left));
+        const clickY = Math.max(0, Math.min(img.clientHeight, e.clientY - stageRect.top));
+        if (floatingToolbar && floatingToolbar.contains(target)) return;
+        if (target.dataset && target.dataset.handle) {
+          activeHandle = target.dataset.handle;
+        } else if (target === cropBox || cropBox.contains(target) && target !== floatingToolbar) {
+          activeHandle = "move";
+        } else {
+          activeHandle = "create";
+          dragStartX = clickX;
+          dragStartY = clickY;
+          box = { x: clickX, y: clickY, w: 1, h: 1 };
+          updateCropBoxDom();
+          isDragging = true;
+          initialBox = { ...box };
+          e.preventDefault();
+          return;
+        }
+        isDragging = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        initialBox = { ...box };
+        e.preventDefault();
+      }
+      function onMouseMove(e) {
+        if (!isDragging || !activeHandle) return;
+        const maxW = img.clientWidth;
+        const maxH = img.clientHeight;
+        if (activeHandle === "create") {
+          const stageRect = stage.getBoundingClientRect();
+          const curX = Math.max(0, Math.min(maxW, e.clientX - stageRect.left));
+          const curY = Math.max(0, Math.min(maxH, e.clientY - stageRect.top));
+          let nx = Math.min(dragStartX, curX);
+          let ny = Math.min(dragStartY, curY);
+          let nw = Math.abs(curX - dragStartX);
+          let nh = Math.abs(curY - dragStartY);
+          if (currentAspectRatio === "16:9") {
+            nh = nw * (9 / 16);
+          } else if (currentAspectRatio === "4:3") {
+            nh = nw * (3 / 4);
+          } else if (currentAspectRatio === "1:1") {
+            nh = nw;
+          }
+          box = {
+            x: nx,
+            y: ny,
+            w: Math.max(10, Math.min(maxW - nx, nw)),
+            h: Math.max(10, Math.min(maxH - ny, nh))
+          };
+          updateCropBoxDom();
+          return;
+        }
+        const dx = e.clientX - dragStartX;
+        const dy = e.clientY - dragStartY;
+        if (activeHandle === "move") {
+          let nx = initialBox.x + dx;
+          let ny = initialBox.y + dy;
+          nx = Math.max(0, Math.min(maxW - box.w, nx));
+          ny = Math.max(0, Math.min(maxH - box.h, ny));
+          box.x = nx;
+          box.y = ny;
+        } else {
+          let newX = initialBox.x;
+          let newY = initialBox.y;
+          let newW = initialBox.w;
+          let newH = initialBox.h;
+          if (activeHandle.includes("e")) newW = Math.max(24, Math.min(maxW - newX, initialBox.w + dx));
+          if (activeHandle.includes("s")) newH = Math.max(24, Math.min(maxH - newY, initialBox.h + dy));
+          if (activeHandle.includes("w")) {
+            const clampedDx = Math.min(dx, initialBox.w - 24);
+            newX = Math.max(0, initialBox.x + clampedDx);
+            newW = initialBox.w - (newX - initialBox.x);
+          }
+          if (activeHandle.includes("n")) {
+            const clampedDy = Math.min(dy, initialBox.h - 24);
+            newY = Math.max(0, initialBox.y + clampedDy);
+            newH = initialBox.h - (newY - initialBox.y);
+          }
+          if (currentAspectRatio === "16:9") {
+            newH = newW * (9 / 16);
+          } else if (currentAspectRatio === "4:3") {
+            newH = newW * (3 / 4);
+          } else if (currentAspectRatio === "1:1") {
+            newH = newW;
+          }
+          if (newX + newW > maxW) newW = maxW - newX;
+          if (newY + newH > maxH) newH = maxH - newY;
+          box = { x: newX, y: newY, w: Math.max(24, newW), h: Math.max(24, newH) };
+        }
+        updateCropBoxDom();
+      }
+      function onMouseUp() {
+        if (isDragging && activeHandle === "create") {
+          if (box.w < 20 || box.h < 20) {
+            if (initialBox.w >= 30 && initialBox.h >= 30) {
+              box = { ...initialBox };
+            } else {
+              initBox(0.08);
+            }
+            updateCropBoxDom();
+          }
+        }
+        isDragging = false;
+        activeHandle = null;
+      }
+      stage.addEventListener("mousedown", onMouseDown);
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+      cropBox.addEventListener("dblclick", (e) => {
+        e.stopPropagation();
+        apply();
+      });
+      function cleanup() {
+        isCropperOpen = false;
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+        window.removeEventListener("keydown", onKeyDown);
+        modal.remove();
+      }
+      function onKeyDown(e) {
+        if (e.key === "Escape") {
+          cleanup();
+          if (onCancel) onCancel();
+        } else if (e.key === "Enter") {
+          apply();
+        }
+      }
+      window.addEventListener("keydown", onKeyDown);
+      function apply() {
+        try {
+          const scaleX = (img.naturalWidth || 1) / (img.clientWidth || 1);
+          const scaleY = (img.naturalHeight || 1) / (img.clientHeight || 1);
+          const sx = Math.max(0, Math.round(box.x * scaleX));
+          const sy = Math.max(0, Math.round(box.y * scaleY));
+          const sw = Math.min((img.naturalWidth || sx + 1) - sx, Math.round(box.w * scaleX));
+          const sh = Math.min((img.naturalHeight || sy + 1) - sy, Math.round(box.h * scaleY));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, sw);
+          canvas.height = Math.max(1, sh);
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+          const croppedDataUrl = canvas.toDataURL("image/png");
+          cleanup();
+          if (onApply) onApply(croppedDataUrl);
+        } catch (err) {
+          console.error("Cropper export error:", err);
+          cleanup();
+          if (onApply) onApply(currentDataUrl);
+        }
+      }
+      const btnApply = modal.querySelector("#cropper-btn-apply");
+      if (btnApply) btnApply.addEventListener("click", apply);
+      const floatBtnApply = modal.querySelector("#float-btn-apply");
+      if (floatBtnApply) floatBtnApply.addEventListener("click", apply);
+      const btnCancel = modal.querySelector("#cropper-btn-cancel");
+      if (btnCancel) {
+        btnCancel.addEventListener("click", () => {
+          cleanup();
+          if (onCancel) onCancel();
+        });
+      }
+      const floatBtnCancel = modal.querySelector("#float-btn-cancel");
+      if (floatBtnCancel) {
+        floatBtnCancel.addEventListener("click", () => {
+          cleanup();
+          if (onCancel) onCancel();
+        });
+      }
+    }
     async function openInpageComposer(selectedText, rect) {
       hideFloatingBubble();
       isComposerOpen = true;
@@ -1452,10 +1957,21 @@ ${translated}`,
 
       <!-- Media Preview Container (Hidden by default) -->
       <div id="inpage-media-preview-container" style="display: none; padding: 0 16px 12px; position: relative;">
-        <div id="inpage-media-preview" style="max-height: 120px; overflow: hidden; border-radius: 8px; border: 1px solid #E2E8F0; position: relative; background: #F8FAFC; display: flex; align-items: center; justify-content: center;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <button id="btn-inpage-crop-media" type="button" style="background: #EFF6FF; border: 1px solid #BFDBFE; color: #2563EB; font-size: 11px; font-weight: 600; cursor: pointer; padding: 3px 10px; border-radius: 6px; display: none; align-items: center; gap: 4px; transition: all 0.15s ease;" title="Crop & edit image">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"/>
+              <path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"/>
+            </svg>
+            <span>Crop & Edit</span>
+          </button>
+          <button id="btn-inpage-remove-media" type="button" style="background: none; border: none; color: #64748B; font-size: 11px; font-weight: 500; cursor: pointer; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Remove attachment">
+            <span>\u2715 Remove</span>
+          </button>
+        </div>
+        <div id="inpage-media-preview" style="max-height: 140px; overflow: hidden; border-radius: 8px; border: 1px solid #E2E8F0; position: relative; background: #0F172A; display: flex; align-items: center; justify-content: center; cursor: pointer;" title="Click to crop/edit">
           <!-- Preview content goes here -->
         </div>
-        <button id="btn-inpage-remove-media" style="position: absolute; top: 4px; right: 20px; background: rgba(15,23,42,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 14px;">\u2715</button>
       </div>
 
       <!-- Hidden File Input for Attachments -->
@@ -1477,6 +1993,14 @@ ${translated}`,
             </svg>
           </button>
 
+          <!-- Screenshot (Capture Screen) -->
+          <button class="annotated-inpage-tool-btn" id="btn-inpage-screenshot" title="Capture screenshot">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+          </button>
+
           <!-- Video Camera -->
           <button class="annotated-inpage-tool-btn" id="btn-inpage-video" title="Video snapshot">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1495,7 +2019,7 @@ ${translated}`,
           </button>
 
           <!-- Paperclip -->
-          <button class="annotated-inpage-tool-btn" id="btn-inpage-attach" title="Attach picture">
+          <button class="annotated-inpage-tool-btn" id="btn-inpage-attach" title="Attach picture or file">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
             </svg>
@@ -1543,29 +2067,101 @@ ${translated}`,
       const previewContainer = inpageComposerEl.querySelector("#inpage-media-preview-container");
       const previewBox = inpageComposerEl.querySelector("#inpage-media-preview");
       const removeMediaBtn = inpageComposerEl.querySelector("#btn-inpage-remove-media");
+      const cropMediaBtn = inpageComposerEl.querySelector("#btn-inpage-crop-media");
       const fileInput = inpageComposerEl.querySelector("#inpage-file-input");
       function setMediaPreview(dataUrl, type) {
         attachedMediaData = dataUrl;
         attachedMediaType = type;
         previewContainer.style.display = "block";
-        removeMediaBtn.style.display = "flex";
+        if (cropMediaBtn) {
+          cropMediaBtn.style.display = type === "image" ? "inline-flex" : "none";
+        }
         if (type === "image") {
-          previewBox.innerHTML = `<img src="${dataUrl}" style="max-width: 100%; max-height: 120px; object-fit: contain;" />`;
+          previewBox.innerHTML = `<img src="${dataUrl}" style="max-width: 100%; max-height: 140px; object-fit: contain; display: block;" />`;
         } else if (type === "audio") {
           previewBox.innerHTML = `<audio controls src="${dataUrl}" style="width: 100%; max-width: 300px;"></audio>`;
         } else if (type === "video") {
-          previewBox.innerHTML = `<video controls src="${dataUrl}" style="max-width: 100%; max-height: 120px;"></video>`;
+          previewBox.innerHTML = `<video controls src="${dataUrl}" style="max-width: 100%; max-height: 140px;"></video>`;
         }
       }
       function clearMedia() {
         attachedMediaData = null;
         attachedMediaType = null;
         previewContainer.style.display = "none";
-        removeMediaBtn.style.display = "none";
         previewBox.innerHTML = "";
         if (fileInput) fileInput.value = "";
       }
-      removeMediaBtn.addEventListener("click", clearMedia);
+      if (removeMediaBtn) removeMediaBtn.addEventListener("click", clearMedia);
+      function ensureComposerVisible() {
+        if (inpageComposerEl) {
+          inpageComposerEl.style.display = "block";
+          inpageComposerEl.style.opacity = "1";
+          inpageComposerEl.style.visibility = "visible";
+          inpageComposerEl.style.pointerEvents = "auto";
+          isComposerOpen = true;
+        }
+        setTimeout(() => {
+          if (textarea) textarea.focus({ preventScroll: true });
+        }, 60);
+      }
+      if (cropMediaBtn) {
+        cropMediaBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (attachedMediaData && attachedMediaType === "image") {
+            openImageCropper(attachedMediaData, (croppedUrl) => {
+              ensureComposerVisible();
+              setMediaPreview(croppedUrl, "image");
+            }, () => {
+              ensureComposerVisible();
+            });
+          }
+        });
+      }
+      if (previewBox) {
+        previewBox.addEventListener("click", () => {
+          if (attachedMediaData && attachedMediaType === "image") {
+            openImageCropper(attachedMediaData, (croppedUrl) => {
+              ensureComposerVisible();
+              setMediaPreview(croppedUrl, "image");
+            }, () => {
+              ensureComposerVisible();
+            });
+          }
+        });
+      }
+      const btnScreenshot = inpageComposerEl.querySelector("#btn-inpage-screenshot");
+      if (btnScreenshot) {
+        btnScreenshot.addEventListener("click", async () => {
+          try {
+            btnScreenshot.disabled = true;
+            const origSvg = btnScreenshot.innerHTML;
+            btnScreenshot.innerHTML = `<span class="annotated-spinner" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(37,99,235,0.3);border-top-color:#2563EB;border-radius:50%;animation:spin 0.6s linear infinite;"></span>`;
+            inpageComposerEl.style.opacity = "0";
+            inpageComposerEl.style.pointerEvents = "none";
+            await new Promise((r) => setTimeout(r, 120));
+            chrome.runtime.sendMessage({ action: "CAPTURE_SCREENSHOT" }, (resp) => {
+              ensureComposerVisible();
+              btnScreenshot.disabled = false;
+              btnScreenshot.innerHTML = origSvg;
+              if (resp && resp.success && resp.dataUrl) {
+                openImageCropper(resp.dataUrl, (croppedUrl) => {
+                  ensureComposerVisible();
+                  setMediaPreview(croppedUrl, "image");
+                }, () => {
+                  ensureComposerVisible();
+                });
+              } else {
+                console.warn("Screenshot error:", resp?.error);
+                alert("Could not capture screenshot: " + (resp?.error || "Unknown error"));
+              }
+            });
+          } catch (err) {
+            ensureComposerVisible();
+            btnScreenshot.disabled = false;
+            console.error("Screenshot trigger error:", err);
+          }
+        });
+      }
       if (fileInput) {
         fileInput.addEventListener("change", (e) => {
           const file = e.target.files[0];

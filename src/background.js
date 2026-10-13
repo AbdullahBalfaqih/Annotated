@@ -125,6 +125,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ status: "ok" });
     return true;
   }
+  if (request.action === "CAPTURE_VISIBLE_TAB" || request.action === "CAPTURE_SCREENSHOT") {
+    try {
+      const winId = sender?.tab?.windowId || null;
+      chrome.tabs.captureVisibleTab(winId, { format: "png" }, (dataUrl) => {
+        if (chrome.runtime.lastError) {
+          console.warn("Screenshot capture error:", chrome.runtime.lastError.message);
+          sendResponse({ success: false, error: chrome.runtime.lastError.message });
+        } else {
+          sendResponse({ success: true, dataUrl });
+        }
+      });
+    } catch (err) {
+      sendResponse({ success: false, error: err.message });
+    }
+    return true;
+  }
   if (request.action === "PUBLISH_ANNOTATION_POST") {
     (async () => {
       try {

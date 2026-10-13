@@ -5,6 +5,7 @@
   "main": "background.js",
   "scripts": {
     "dev": "next dev -p 3000",
+    "dev:all": "node dev-all.js",
     "server": "node server/server.js",
     "serve": "npx serve out -p 3000",
     "build": "node build.js",

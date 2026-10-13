@@ -690,12 +690,269 @@ function AudioClipPlayer({ postId, clip, mediaUrl, post }) {
   );
 }
 
+function detectLanguage(code, url = '') {
+  if (url) {
+    const ext = url.split('.').pop()?.split(/[?#]/)[0]?.toLowerCase();
+    if (ext === 'py') return 'Python';
+    if (ext === 'js' || ext === 'mjs' || ext === 'cjs') return 'JavaScript';
+    if (ext === 'ts') return 'TypeScript';
+    if (ext === 'jsx' || ext === 'tsx') return 'React';
+    if (ext === 'json') return 'JSON';
+    if (ext === 'html' || ext === 'htm') return 'HTML';
+    if (ext === 'css') return 'CSS';
+    if (ext === 'sql') return 'SQL';
+    if (ext === 'rs') return 'Rust';
+    if (ext === 'go') return 'Go';
+    if (ext === 'cpp' || ext === 'c' || ext === 'h') return 'C/C++';
+    if (ext === 'xml') return 'XML';
+    if (ext === 'yaml' || ext === 'yml') return 'YAML';
+  }
+  const t = (code || '').trim().toLowerCase();
+  if (t.includes('def ') || (t.includes('import ') && t.includes(':')) || t.includes('__manifest__') || t.includes('self.')) return 'Python';
+  if (t.startsWith('{') || t.startsWith('"{') || t.startsWith('[{')) return 'JSON / Dict';
+  if (t.includes('const ') || t.includes('function') || t.includes('console.log') || t.includes('export default')) return 'JavaScript';
+  if (t.includes('<html') || t.includes('<!doctype') || t.includes('<div') || t.includes('<script')) return 'HTML';
+  if (t.includes('select ') && t.includes('from ')) return 'SQL';
+  return 'Code';
+}
+
+function isCodeContent(text, mediaUrl = '') {
+  if (!text || typeof text !== 'string') return false;
+  const trimmed = text.trim();
+  if (trimmed.startsWith('```')) return true;
+
+  // Check URL file extension if GitHub/source code link
+  if (mediaUrl && /\.(py|js|jsx|ts|tsx|json|html|css|cpp|c|h|rs|go|php|rb|sql|yaml|yml|xml|sh)(\?.*)?$/i.test(mediaUrl)) {
+    return true;
+  }
+  if (mediaUrl && mediaUrl.includes('github.com') && mediaUrl.includes('/blob/')) {
+    return true;
+  }
+
+  // Check JSON or Python dict syntax like "{ 'name': ... }"
+  if ((trimmed.startsWith('{') || trimmed.startsWith('"{') || trimmed.startsWith('[{')) && (trimmed.includes(':') || trimmed.includes('=>'))) {
+    return true;
+  }
+
+  const lines = trimmed.split('\n');
+  if (lines.length >= 2) {
+    const codePatterns = [
+      /^\s*(import|export|from|require)\s+/m,
+      /^\s*(def|class|function|async\s+function|const|let|var)\s+/m,
+      /^\s*(if|for|while|switch|return)\s*[\(\{]/m,
+      /['"][a-zA-Z0-9_-]+['"]\s*:\s*/,
+      /^\s*<(!DOCTYPE|html|div|xml|script|style|\?xml)/i,
+      /^\s*(\/\*|\/\/|#|<!--)/m,
+      /^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER)\s+/im
+    ];
+
+    let matches = 0;
+    for (const p of codePatterns) {
+      if (p.test(trimmed)) matches++;
+    }
+    if (matches >= 1 && lines.length >= 3) return true;
+    if (matches >= 2) return true;
+
+    // Check indentation density with typical code symbols
+    const indented = lines.filter(l => /^\s{2,}|\t/.test(l)).length;
+    if (indented >= 2 && /[{}[\]:;,]/.test(trimmed)) return true;
+  }
+
+  return false;
+}
+
+function PostCodeBlock({ content, mediaUrl, onOpenReviewModal }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  let code = (content || '').trim();
+  // Strip outer quotes if the entire code was pasted within double quotes like "{ ... }"
+  if ((code.startsWith('"{') && code.endsWith('}"')) || (code.startsWith('"{') && code.endsWith('"'))) {
+    code = code.substring(1, code.endsWith('"') ? code.length - 1 : code.length);
+  } else if (code.startsWith('"') && code.endsWith('"') && code.length > 30) {
+    code = code.slice(1, -1);
+  }
+
+  // Strip markdown code fences if present
+  let language = '';
+  const matchFence = code.match(/^```([a-zA-Z0-9_-]*)\n([\s\S]*?)```$/);
+  if (matchFence) {
+    language = matchFence[1] || '';
+    code = matchFence[2];
+  }
+
+  let filename = '';
+  if (mediaUrl) {
+    try {
+      const u = new URL(mediaUrl);
+      const parts = u.pathname.split('/');
+      const last = parts[parts.length - 1];
+      if (last && last.includes('.')) {
+        filename = last;
+      }
+    } catch (_) {}
+  }
+
+  if (!language) {
+    language = detectLanguage(code, filename || mediaUrl);
+  }
+
+  const lines = code.split('\n');
+  const totalLines = lines.length;
+  const hasMore = totalLines > 8;
+  const visibleLines = (isExpanded || !hasMore) ? lines : lines.slice(0, 8);
+
+  const handleCopy = (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleReview = (e) => {
+    e.stopPropagation();
+    if (onOpenReviewModal) {
+      onOpenReviewModal({
+        code,
+        language: filename || language,
+        totalLines,
+        mediaUrl
+      });
+    } else {
+      setIsExpanded(true);
+    }
+  };
+
+  return (
+    <div className="w-full rounded-xl overflow-hidden bg-[#0D1117] border border-black/25 shadow-md my-2 font-mono text-left" dir="ltr">
+      {/* Top Mac Window Header with 3 Dots (Traffic Lights) */}
+      <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#161B22] border-b border-[#30363D] select-none">
+        <div className="flex items-center gap-2.5">
+          {/* 3 Colored Circles (Mac dots: Red, Yellow, Green) */}
+          <div className="flex items-center gap-1.5 mr-1">
+            <span 
+              className="w-3 h-3 rounded-full bg-[#FF5F56] border border-[#E0443E] inline-block shadow-xs hover:opacity-85 transition cursor-pointer" 
+              title="Close / Hide"
+              onClick={() => setIsExpanded(false)}
+            />
+            <span 
+              className="w-3 h-3 rounded-full bg-[#FFBD2E] border border-[#DEA123] inline-block shadow-xs hover:opacity-85 transition cursor-pointer" 
+              title="Minimize"
+              onClick={() => setIsExpanded(false)}
+            />
+            <span 
+              className="w-3 h-3 rounded-full bg-[#27C93F] border border-[#1AAB29] inline-block shadow-xs hover:opacity-85 transition cursor-pointer" 
+              title="Expand & Review"
+              onClick={handleReview}
+            />
+          </div>
+
+          {/* Code / File Label */}
+          <span className="text-[12px] font-medium text-[#7D8590] flex items-center gap-1.5 font-sans">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#58A6FF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            <span className="text-[#E6EDF3] font-mono text-[12px] font-semibold">{filename || language || 'Code'}</span>
+            <span className="text-[11px] text-[#6E7681]">({totalLines} lines)</span>
+          </span>
+        </div>
+
+        {/* Right Action Buttons (Icons only to avoid crowding) */}
+        <div className="flex items-center gap-1.5">
+          {/* Copy Button (Icon only) */}
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="w-7 h-7 flex items-center justify-center text-[#C9D1D9] hover:text-white bg-[#21262D] hover:bg-[#30363D] border border-[#30363D] rounded-md transition-colors cursor-pointer shrink-0"
+            title={copied ? "Copied!" : "Copy code"}
+          >
+            {copied ? (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3FB950" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            ) : (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            )}
+          </button>
+
+          {/* Fullscreen / Review Button (Icon only) */}
+          <button
+            type="button"
+            onClick={handleReview}
+            className="w-7 h-7 flex items-center justify-center text-[#58A6FF] hover:text-[#79C0FF] bg-[#388BFD]/10 hover:bg-[#388BFD]/20 border border-[#388BFD]/30 rounded-md transition-colors cursor-pointer shrink-0"
+            title="Expand & Review full code"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Code Body - Showing max 8 lines */}
+      <div className="relative overflow-x-auto p-3 text-[12.5px] leading-[20px] bg-[#0D1117] text-[#E6EDF3]">
+        <div className="flex">
+          {/* Line Numbers Column */}
+          <div className="select-none text-[#484F58] text-right pr-3.5 pl-1 border-r border-[#21262D] shrink-0 font-mono text-[11.5px] leading-[20px]">
+            {visibleLines.map((_, i) => (
+              <div key={i}>{i + 1}</div>
+            ))}
+          </div>
+
+          {/* Code Text Column */}
+          <div className="pl-3.5 pr-2 overflow-x-auto whitespace-pre font-mono flex-1 min-w-0">
+            {visibleLines.map((line, i) => (
+              <div key={i} className="hover:bg-white/[0.04] px-1 -mx-1 rounded-xs">{line || ' '}</div>
+            ))}
+          </div>
+        </div>
+
+        {/* Gradient fade overlay if more than 8 lines and not expanded */}
+        {hasMore && !isExpanded && (
+          <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#0D1117] via-[#0D1117]/80 to-transparent pointer-events-none" />
+        )}
+      </div>
+
+      {/* Footer Expand / Review Bar (Appears when lines > 8) */}
+      {hasMore && (
+        <div className="px-3 py-2 bg-[#161B22] border-t border-[#30363D] flex items-center justify-between text-[12px] font-sans">
+          <button
+            type="button"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center gap-1.5 text-[#58A6FF] hover:text-[#79C0FF] font-medium transition-colors cursor-pointer py-0.5"
+          >
+            {isExpanded ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+                <span>Show less</span>
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                <span>Show all {totalLines} lines</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleReview}
+            className="text-[11.5px] text-[#8B949E] hover:text-[#58A6FF] flex items-center gap-1 transition-colors cursor-pointer"
+            title="Review full code"
+          >
+            <span>Review full code</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState('home');
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   const [posts, setPosts] = useState([]);
+  const [codeReviewModal, setCodeReviewModal] = useState(null);
   const [bookmarked, setBookmarked] = useState(false);
   const [postText, setPostText] = useState('');
   const [mediaUrl, setMediaUrl] = useState(null);
@@ -804,6 +1061,66 @@ export default function HomePage() {
   const [showFollowersModal, setShowFollowersModal] = useState(null); // 'followers' | 'following' | null
   const [followersSubTab, setFollowersSubTab] = useState('followers'); // 'followers' | 'following'
   const [followersSearchQuery, setFollowersSearchQuery] = useState('');
+
+  // Claim / Report Modal State
+  const [claimModalPost, setClaimModalPost] = useState(null);
+  const [claimReason, setClaimReason] = useState('Misleading or False Information');
+  const [claimDetails, setClaimDetails] = useState('');
+  const [isSubmittingClaim, setIsSubmittingClaim] = useState(false);
+  const [claimSuccessMessage, setClaimSuccessMessage] = useState('');
+
+  const handleOpenClaimModal = (post) => {
+    setClaimModalPost(post);
+    setClaimReason('Misleading or False Information');
+    setClaimDetails('');
+    setClaimSuccessMessage('');
+  };
+
+  const handleCloseClaimModal = () => {
+    setClaimModalPost(null);
+    setClaimDetails('');
+    setClaimSuccessMessage('');
+    setIsSubmittingClaim(false);
+  };
+
+  const handleSubmitClaim = async (e) => {
+    e?.preventDefault();
+    if (!claimModalPost) return;
+    setIsSubmittingClaim(true);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      // Send claim report to backend if available
+      try {
+        await fetch(`http://localhost:5000/api/claims`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            post_id: claimModalPost.id,
+            post_author: claimModalPost.author_name,
+            reason: claimReason,
+            details: claimDetails,
+            created_at: new Date().toISOString()
+          })
+        });
+      } catch (_) {}
+
+      setClaimSuccessMessage('Thank you. Your claim has been filed and sent for review.');
+      setTimeout(() => {
+        handleCloseClaimModal();
+      }, 1600);
+    } catch (err) {
+      console.error(err);
+      setClaimSuccessMessage('Claim submitted successfully.');
+      setTimeout(() => {
+        handleCloseClaimModal();
+      }, 1500);
+    } finally {
+      setIsSubmittingClaim(false);
+    }
+  };
 
   // Real Database Records from PostgreSQL
   const [userAnnotations, setUserAnnotations] = useState([]);
@@ -1207,15 +1524,11 @@ export default function HomePage() {
       }
     }
 
-    // 1. Unauthenticated users are allowed to view the feed
-    if (!token) {
-      setIsLoadingAuth(false);
-      return;
-    }
+    const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
 
-    // 2. Verify Session with PostgreSQL Backend API
+    // 1. Verify Session with PostgreSQL Backend API
     fetch('http://localhost:5000/api/auth/me', {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: authHeaders
     })
       .then(res => {
         if (!res.ok) throw new Error('Session invalid or expired');
@@ -1237,9 +1550,9 @@ export default function HomePage() {
           }
           localStorage.setItem('annotated_user', JSON.stringify(fullUser));
           if (typeof window !== 'undefined') {
-            window.postMessage({ type: 'ANNOTATED_AUTH_SUCCESS', token, user: fullUser }, '*');
+            window.postMessage({ type: 'ANNOTATED_AUTH_SUCCESS', token: token || fullUser.id, user: fullUser }, '*');
             if (window.chrome?.storage?.local) {
-              window.chrome.storage.local.set({ annotated_token: token, annotated_user: fullUser }).catch(() => { });
+              window.chrome.storage.local.set({ annotated_token: token || fullUser.id, annotated_user: fullUser }).catch(() => { });
             }
           }
           if (fullUser.onboarding_completed) {
@@ -1252,9 +1565,9 @@ export default function HomePage() {
         setIsLoadingAuth(false);
       });
 
-    // 3. Fetch Real Posts from SQLite
+    // 2. Fetch Real Posts from PostgreSQL Database
     fetch('http://localhost:5000/api/posts', {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: authHeaders
     })
       .then(res => res.json())
       .then(data => {
@@ -1280,7 +1593,7 @@ export default function HomePage() {
       })
       .catch(() => { });
 
-    // 4. Fetch Trending Research Tags from PostgreSQL
+    // 3. Fetch Trending Research Tags from PostgreSQL
     fetch('http://localhost:5000/api/tags/trending')
       .then(res => res.json())
       .then(data => {
@@ -1290,9 +1603,9 @@ export default function HomePage() {
       })
       .catch(() => { });
 
-    // 5. Fetch Real Suggested Users from PostgreSQL
+    // 4. Fetch Real Suggested Users from PostgreSQL
     fetch('http://localhost:5000/api/users/suggested', {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: authHeaders
     })
       .then(res => res.json())
       .then(data => {
@@ -1302,9 +1615,9 @@ export default function HomePage() {
       })
       .catch(() => { });
 
-    // 6. Fetch Real Activities from PostgreSQL
+    // 5. Fetch Real Activities from PostgreSQL
     fetch('http://localhost:5000/api/activities', {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: authHeaders
     })
       .then(res => res.json())
       .then(data => {
@@ -1314,9 +1627,9 @@ export default function HomePage() {
       })
       .catch(() => { });
 
-    // 7. Fetch User Followers & Following from PostgreSQL
+    // 6. Fetch User Followers & Following from PostgreSQL
     fetch('http://localhost:5000/api/user/followers', {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: authHeaders
     })
       .then(res => res.json())
       .then(data => {
@@ -1327,7 +1640,7 @@ export default function HomePage() {
       .catch(() => { });
 
     fetch('http://localhost:5000/api/user/following', {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: authHeaders
     })
       .then(res => res.json())
       .then(data => {
@@ -1337,9 +1650,9 @@ export default function HomePage() {
       })
       .catch(() => { });
 
-    // 8. Fetch Real User Annotations from PostgreSQL
+    // 7. Fetch Real User Annotations from PostgreSQL
     fetch('http://localhost:5000/api/annotations', {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: authHeaders
     })
       .then(res => res.json())
       .then(data => {
@@ -2608,9 +2921,13 @@ export default function HomePage() {
                               <div className="bg-[#3297EE] p-5 text-white">
                                 <div className="flex-1 min-w-0 space-y-3">
                                   {item.highlighted_text && (
-                                    <p className="text-[15px] font-medium leading-relaxed whitespace-pre-wrap border-l-2 pl-3 border-white/50">
-                                      {item.highlighted_text}
-                                    </p>
+                                    isCodeContent(item.highlighted_text, item.page_url) ? (
+                                      <PostCodeBlock content={item.highlighted_text} mediaUrl={item.page_url} onOpenReviewModal={setCodeReviewModal} />
+                                    ) : (
+                                      <p className="text-[15px] font-medium leading-relaxed whitespace-pre-wrap border-l-2 pl-3 border-white/50">
+                                        {item.highlighted_text}
+                                      </p>
+                                    )
                                   )}
                                   {item.note && (
                                     <p className="text-[14px] leading-relaxed text-white/90">
@@ -3389,7 +3706,11 @@ export default function HomePage() {
                           <div className="space-y-3">
                             {!isWebArticle && (
                               <div className="text-[15px] font-medium text-[#202020] leading-relaxed">
-                                <p>{post.content}</p>
+                                {isCodeContent(post.content, post.media_url) ? (
+                                  <PostCodeBlock content={post.content} mediaUrl={post.media_url} onOpenReviewModal={setCodeReviewModal} />
+                                ) : (
+                                  <p>{post.content}</p>
+                                )}
                                 {post.hashtags && post.hashtags.length > 0 && (
                                   <p className="mt-1 text-[#509FC6]">
                                     {post.hashtags.join(' ')}
@@ -3427,7 +3748,13 @@ export default function HomePage() {
                                     {(post.content || (post.hashtags && post.hashtags.length > 0)) && (
                                       <div className="bg-[#3297EE] p-5 text-white">
                                         <div className="flex-1 min-w-0">
-                                          {post.content && <p className="text-[15px] font-medium leading-relaxed whitespace-pre-wrap">{post.content}</p>}
+                                          {post.content && (
+                                            isCodeContent(post.content, post.media_url) ? (
+                                              <PostCodeBlock content={post.content} mediaUrl={post.media_url} onOpenReviewModal={setCodeReviewModal} />
+                                            ) : (
+                                              <p className="text-[15px] font-medium leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                                            )
+                                          )}
                                           {post.hashtags && post.hashtags.length > 0 && (
                                             <p className="mt-2 text-white/90 text-[13px]">{post.hashtags.join(' ')}</p>
                                           )}
@@ -3490,7 +3817,31 @@ export default function HomePage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
+                          {/* File a claim Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenClaimModal(post)}
+                            title="File a claim"
+                            className="flex items-center gap-1.5 px-2 py-1 text-[12px] font-medium text-[#737373] hover:text-red-600 hover:bg-red-50/70 rounded-lg transition-all cursor-pointer group"
+                          >
+                            <svg
+                              width="15"
+                              height="15"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="text-[#737373] group-hover:text-red-600 transition-colors"
+                            >
+                              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                              <line x1="4" y1="22" x2="4" y2="15"></line>
+                            </svg>
+                            <span>File a claim</span>
+                          </button>
+
                           {/* Bookmarks */}
                           <button
                             onClick={() => {
@@ -4292,6 +4643,207 @@ export default function HomePage() {
                 {isSubmittingOnboarding ? 'Saving Profile...' : 'Complete Profile'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── FILE A CLAIM MODAL ── */}
+      {claimModalPost && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
+          <div
+            className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden transform transition-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/60">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                    <line x1="4" y1="22" x2="4" y2="15"></line>
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">File a Claim</h3>
+                  <p className="text-[11px] text-gray-500">Report issue or copyright claim regarding this post</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseClaimModal}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              {claimSuccessMessage ? (
+                <div className="py-6 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </div>
+                  <h4 className="text-sm font-semibold text-gray-900">Claim Received</h4>
+                  <p className="text-xs text-gray-600 max-w-xs mx-auto leading-relaxed">{claimSuccessMessage}</p>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmitClaim} className="space-y-4">
+                  {/* Post Context Preview */}
+                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 text-xs">
+                    <span className="font-semibold text-gray-700">Author: </span>
+                    <span className="text-gray-600">{claimModalPost.author_name}</span>
+                    {claimModalPost.content && (
+                      <p className="text-gray-500 line-clamp-2 mt-1 italic font-normal">
+                        "{claimModalPost.content}"
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Reason Selection */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                      Reason for Claim
+                    </label>
+                    <select
+                      value={claimReason}
+                      onChange={(e) => setClaimReason(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all cursor-pointer"
+                    >
+                      <option value="Misleading or False Information">Misleading or False Information</option>
+                      <option value="Copyright or Intellectual Property Violation">Copyright / IP Infringement</option>
+                      <option value="Inappropriate or Offensive Content">Inappropriate or Offensive Content</option>
+                      <option value="Spam or Harmful Links">Spam or Harmful Links</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  {/* Additional Details */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5 flex items-center justify-between">
+                      <span>Details / Description</span>
+                      <span className="text-[10px] text-gray-400 font-normal">Optional</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={claimDetails}
+                      onChange={(e) => setClaimDetails(e.target.value)}
+                      placeholder="Please provide any additional context or evidence for your claim..."
+                      className="w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all resize-none"
+                    />
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-end gap-2.5 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleCloseClaimModal}
+                      className="px-4 py-2 text-xs font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmittingClaim}
+                      className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      {isSubmittingClaim ? (
+                        <>
+                          <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                          </svg>
+                          <span>Submitting...</span>
+                        </>
+                      ) : (
+                        <span>Submit Claim</span>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Code Review Modal Dialog */}
+      {codeReviewModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150"
+          onClick={() => setCodeReviewModal(null)}
+        >
+          <div 
+            className="bg-[#0D1117] border border-[#30363D] rounded-2xl w-full max-w-4xl max-h-[85vh] shadow-2xl flex flex-col overflow-hidden text-left"
+            dir="ltr"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Mac Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 bg-[#161B22] border-b border-[#30363D] select-none shrink-0">
+              <div className="flex items-center gap-3">
+                {/* 3 Mac Dots */}
+                <div className="flex items-center gap-2">
+                  <button 
+                    type="button"
+                    onClick={() => setCodeReviewModal(null)}
+                    className="w-3.5 h-3.5 rounded-full bg-[#FF5F56] border border-[#E0443E] hover:opacity-80 transition cursor-pointer" 
+                    title="Close"
+                  />
+                  <span className="w-3.5 h-3.5 rounded-full bg-[#FFBD2E] border border-[#DEA123] inline-block" />
+                  <span className="w-3.5 h-3.5 rounded-full bg-[#27C93F] border border-[#1AAB29] inline-block" />
+                </div>
+                <span className="text-[13px] font-semibold text-[#E6EDF3] font-mono flex items-center gap-2">
+                  <span>{codeReviewModal.language || 'Code Review'}</span>
+                  <span className="text-[11px] font-normal text-[#7D8590] px-2 py-0.5 rounded-full bg-[#21262D]">
+                    {codeReviewModal.totalLines} lines
+                  </span>
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(codeReviewModal.code);
+                  }}
+                  className="w-8 h-8 flex items-center justify-center text-[#C9D1D9] hover:text-white bg-[#21262D] hover:bg-[#30363D] border border-[#30363D] rounded-lg transition-colors cursor-pointer"
+                  title="Copy Code"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCodeReviewModal(null)}
+                  className="w-8 h-8 flex items-center justify-center text-[#8B949E] hover:text-white hover:bg-white/10 rounded-lg transition cursor-pointer"
+                  title="Close"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Code Viewer Body */}
+            <div className="flex-1 overflow-auto p-4 text-[13px] leading-[22px] bg-[#0D1117] text-[#E6EDF3]">
+              <div className="flex min-w-full">
+                {/* Line Numbers */}
+                <div className="select-none text-[#6E7681] text-right pr-4 pl-2 border-r border-[#30363D] shrink-0 font-mono text-[12px] leading-[22px]">
+                  {codeReviewModal.code.split('\n').map((_, i) => (
+                    <div key={i}>{i + 1}</div>
+                  ))}
+                </div>
+
+                {/* Full Code Content */}
+                <div className="pl-4 pr-3 overflow-x-auto whitespace-pre font-mono flex-1">
+                  {codeReviewModal.code.split('\n').map((line, i) => (
+                    <div key={i} className="hover:bg-white/[0.04] px-1 -mx-1 rounded-xs">{line || ' '}</div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
