@@ -400,7 +400,10 @@ function AudioClipPlayer({ postId, clip, mediaUrl, post }) {
   const [isClipFinished, setIsClipFinished] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [artworkUrl, setArtworkUrl] = useState(post?.thumbnail_url || null);
-  const [title, setTitle] = useState(post?.content || 'Podcast Audio Clip');
+  // Extract clean title: do not merge personal comments into the podcast episode title
+  const { quote: parsedQuote, note: parsedNote } = post?.content ? parsePostQuoteAndNote(post.content) : { quote: null, note: '' };
+  const fallbackTitle = post?.title || parsedQuote || (parsedNote ? parsedNote.split('\n')[0].replace(/^["“]|["”]$/g, '').trim() : '') || 'Podcast Audio Clip';
+  const [title, setTitle] = useState(fallbackTitle);
   const [showName, setShowName] = useState(clip?.platform === 'spreaker' ? 'Spreaker' : 'Audio');
   const [streamUrl, setStreamUrl] = useState(clip?.streamUrl || null);
   const [isLoadingMetadata, setIsLoadingMetadata] = useState(Boolean(clip?.spreakerEpisodeId));
@@ -744,53 +747,108 @@ function detectLanguage(code, url = '') {
 
 function isCodeContent(text, mediaUrl = '') {
   if (!text || typeof text !== 'string') return false;
-  let trimmed = text.trim();
-  if (trimmed.startsWith('```')) return true;
+  const raw = text.trim();
+  if (!raw) return false;
 
-  // Unquote if wrapped in outer quotes or prefixed: "{ ... }" or "{ \n ...
+  // Media clips (Podcasts, Audio files, YouTube videos) are NEVER code
+  if (mediaUrl) {
+    try {
+      const u = new URL(mediaUrl);
+      const host = u.hostname.toLowerCase();
+      if (
+        host.includes('youtube.com') ||
+        host.includes('youtu.be') ||
+        host.includes('spreaker.com') ||
+        host.includes('soundcloud.com') ||
+        host.includes('spotify.com') ||
+        host.includes('apple.com') ||
+        host.includes('podcasts.apple.com') ||
+        host.includes('podbean.com') ||
+        host.includes('anchor.fm') ||
+        host.includes('castbox.fm') ||
+        /\.(mp3|m4a|wav|aac|ogg|webm|opus|mp4|mov|avi)(\?.*)?$/i.test(mediaUrl)
+      ) {
+        return false;
+      }
+    } catch (_) {}
+  }
+
+  // 1. Explicit Markdown Code Fences (``` ... ```)
+  if (raw.startsWith('```') || /```[a-zA-Z0-9_-]*\n[\s\S]+?```/.test(raw)) {
+    return true;
+  }
+
+  // 2. Media URL is explicitly GitHub or a code repository / gist / code file
+  const isCodeSourceUrl = Boolean(
+    mediaUrl && (
+      mediaUrl.includes('github.com') ||
+      mediaUrl.includes('gitlab.com') ||
+      mediaUrl.includes('gist.github.com') ||
+      mediaUrl.includes('raw.githubusercontent.com') ||
+      mediaUrl.includes('bitbucket.org') ||
+      /\.(py|js|jsx|ts|tsx|json|html|css|cpp|c|h|rs|go|php|rb|sql|yaml|yml|xml|sh|java|kt|cs|swift)(\?.*)?$/i.test(mediaUrl)
+    )
+  );
+
+  // If the post comes from GitHub or a code file, and contains content, it is code
+  if (isCodeSourceUrl) {
+    return true;
+  }
+
+  // Clean candidate from outer quotes if wrapped like "const a = 1;"
+  let trimmed = raw;
   if (trimmed.startsWith('"') || trimmed.startsWith("'") || trimmed.startsWith('“')) {
     const candidate = trimmed.replace(/^["'“]/, '').replace(/["'”]$/, '').trim();
-    if (candidate.startsWith('{') || candidate.startsWith('[') || candidate.includes('\n') || candidate.includes('def ') || candidate.includes(':')) {
+    if (
+      candidate.startsWith('{') || candidate.startsWith('[') || candidate.includes('\n') ||
+      candidate.includes('def ') || candidate.includes('function ') || candidate.includes('const ') ||
+      candidate.includes('let ') || candidate.includes('var ') || candidate.includes('import ')
+    ) {
       trimmed = candidate;
     }
   }
 
-  // Check URL file extension if GitHub/source code link
-  if (mediaUrl && /\.(py|js|jsx|ts|tsx|json|html|css|cpp|c|h|rs|go|php|rb|sql|yaml|yml|xml|sh)(\?.*)?$/i.test(mediaUrl)) {
-    return true;
-  }
-  if (mediaUrl && mediaUrl.includes('github.com') && mediaUrl.includes('/blob/')) {
-    return true;
+  // 3. Structured JSON or Python Dictionary / Array syntax
+  if ((trimmed.startsWith('{') || trimmed.startsWith('[{')) && (trimmed.endsWith('}') || trimmed.endsWith('}]')) && trimmed.includes(':')) {
+    try {
+      JSON.parse(trimmed);
+      return true;
+    } catch (_) {
+      if (/["'][a-zA-Z0-9_.-]+["']\s*:\s*/.test(trimmed) && trimmed.includes('\n')) {
+        return true;
+      }
+    }
   }
 
-  // Check JSON or Python dict syntax like "{ 'name': ... }"
-  if ((trimmed.startsWith('{') || trimmed.startsWith('[{')) && (trimmed.includes(':') || trimmed.includes('=>'))) {
-    return true;
-  }
-
-  const lines = trimmed.split('\n');
+  // 4. Standalone source code detection (must NOT match hashtags like #ABtalks or plain text)
+  // Require at least 2 lines of real code syntax
+  const lines = trimmed.split('\n').map(l => l.trim()).filter(Boolean);
   if (lines.length >= 2) {
-    const codePatterns = [
-      /^\s*(import|export|from|require)\s+/m,
-      /^\s*(def|class|function|async\s+function|const|let|var)\s+/m,
-      /^\s*(if|for|while|switch|return)\s*[\(\{]/m,
-      /['"][a-zA-Z0-9_-]+['"]\s*:\s*/,
-      /^\s*<(!DOCTYPE|html|div|xml|script|style|\?xml)/i,
-      /^\s*(\/\*|\/\/|#|<!--)/m,
-      /^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER)\s+/im,
-      /['"][a-zA-Z0-9_-]+['"]\s*,\s*$/m
+    const strictCodePatterns = [
+      /^\s*(import|export)\s+.*\s+(from|require)\b/m,
+      /^\s*(def|class)\s+[a-zA-Z0-9_]+\s*(\(|:)/m,
+      /^\s*(function|async\s+function)\s*[a-zA-Z0-9_]*\s*\(/m,
+      /^\s*(const|let|var)\s+[a-zA-Z0-9_$]+\s*=\s*/m,
+      /^\s*(if|for|while|switch)\s*\([a-zA-Z0-9_$.<>=!&|\s]+\)\s*\{/m,
+      /^\s*<(!DOCTYPE|html|div|script|style|\?xml)/i,
+      /^\s*(\/\*|\/\/)/m,
+      /^\s*#[ \t]+(TODO|FIXME|NOTE|import|include|define|pragma|[a-z])/m, // Code comment (never hashtag like #ABtalks)
+      /;\s*$/m // Statement ending with semicolon
     ];
 
     let matches = 0;
-    for (const p of codePatterns) {
+    for (const p of strictCodePatterns) {
       if (p.test(trimmed)) matches++;
     }
-    if (matches >= 1 && lines.length >= 3) return true;
-    if (matches >= 2) return true;
 
-    // Check indentation density with typical code symbols
-    const indented = lines.filter(l => /^\s{2,}|\t/.test(l)).length;
-    if (indented >= 2 && /[{}[\]:;,]/.test(trimmed)) return true;
+    if (matches >= 2) {
+      return true;
+    }
+
+    const indented = trimmed.split('\n').filter(l => /^\s{2,}|\t/.test(l)).length;
+    if (indented >= 2 && matches >= 1 && /[{};]/.test(trimmed)) {
+      return true;
+    }
   }
 
   return false;
@@ -3989,16 +4047,14 @@ export default function HomePage() {
                         if (ytClip) {
                           return (
                             <div className="space-y-3">
-                              {hasCode ? (
-                                <PostCodeBlock content={codeBody} mediaUrl={post.media_url} onOpenReviewModal={setCodeReviewModal} />
-                              ) : (
-                                (quote || note) && (
-                                  <div className="text-[15px] font-medium text-[#202020] leading-relaxed">
-                                    {quote && <p className="font-semibold text-gray-900 border-l-2 border-blue-500 pl-3 mb-2">"{quote}"</p>}
-                                    {note && <p className="whitespace-pre-wrap">{note}</p>}
-                                    {post.hashtags && post.hashtags.length > 0 && <p className="mt-1 text-[#509FC6]">{post.hashtags.join(' ')}</p>}
-                                  </div>
-                                )
+                              {(quote || note) && (
+                                <div className="text-[15px] font-medium text-[#202020] leading-relaxed">
+                                  {quote && !quote.startsWith('#') && (
+                                    <p className="font-semibold text-gray-900 border-l-2 border-blue-500 pl-3 mb-2">"{quote}"</p>
+                                  )}
+                                  {note && <p className="whitespace-pre-wrap">{note}</p>}
+                                  {post.hashtags && post.hashtags.length > 0 && <p className="mt-1 text-[#509FC6]">{post.hashtags.join(' ')}</p>}
+                                </div>
                               )}
                               <YouTubeClipPlayer key={post.id} postId={post.id} clip={ytClip} mediaUrl={post.media_url} />
                             </div>
@@ -4009,16 +4065,14 @@ export default function HomePage() {
                         if (audioClip) {
                           return (
                             <div className="space-y-3">
-                              {hasCode ? (
-                                <PostCodeBlock content={codeBody} mediaUrl={post.media_url} onOpenReviewModal={setCodeReviewModal} />
-                              ) : (
-                                (quote || note) && (
-                                  <div className="text-[15px] font-medium text-[#202020] leading-relaxed">
-                                    {quote && <p className="font-semibold text-gray-900 border-l-2 border-blue-500 pl-3 mb-2">"{quote}"</p>}
-                                    {note && <p className="whitespace-pre-wrap">{note}</p>}
-                                    {post.hashtags && post.hashtags.length > 0 && <p className="mt-1 text-[#509FC6]">{post.hashtags.join(' ')}</p>}
-                                  </div>
-                                )
+                              {(quote || note) && (
+                                <div className="text-[15px] font-medium text-[#202020] leading-relaxed">
+                                  {quote && !quote.startsWith('#') && (
+                                    <p className="font-semibold text-gray-900 border-l-2 border-blue-500 pl-3 mb-2">"{quote}"</p>
+                                  )}
+                                  {note && <p className="whitespace-pre-wrap">{note}</p>}
+                                  {post.hashtags && post.hashtags.length > 0 && <p className="mt-1 text-[#509FC6]">{post.hashtags.join(' ')}</p>}
+                                </div>
                               )}
                               <AudioClipPlayer key={post.id} postId={post.id} clip={audioClip} mediaUrl={post.media_url} post={post} />
                             </div>
