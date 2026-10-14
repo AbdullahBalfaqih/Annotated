@@ -83,7 +83,7 @@ function YouTubeClipPlayer({ postId, clip, mediaUrl, hasTopHeader = false }) {
             iv_load_policy: 3,
             playsinline: 1,
             enablejsapi: 1,
-            origin: typeof window !== 'undefined' ? window.location.origin : ''
+            ...(typeof window !== 'undefined' && window.location.protocol.startsWith('http') ? { origin: window.location.origin } : {})
           },
           events: {
             onStateChange: (event) => {
@@ -406,8 +406,9 @@ function AudioClipPlayer({ postId, clip, mediaUrl, post, hasTopHeader = false })
   const [title, setTitle] = useState(fallbackTitle);
   const [showName, setShowName] = useState(clip?.platform === 'spreaker' ? 'Spreaker' : clip?.platform === 'apple' ? 'Apple Podcasts' : 'Audio');
   const [streamUrl, setStreamUrl] = useState(clip?.streamUrl || null);
-  const [isLoadingMetadata, setIsLoadingMetadata] = useState(Boolean(clip?.spreakerEpisodeId));
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState(Boolean(clip?.spreakerEpisodeId || clip?.platform === 'apple'));
   const [hasArtworkError, setHasArtworkError] = useState(false);
+  const [pendingPlay, setPendingPlay] = useState(false);
 
   const formatSec = (sec) => {
     const s = Math.max(0, Math.floor(sec || 0));
@@ -444,6 +445,7 @@ function AudioClipPlayer({ postId, clip, mediaUrl, post, hasTopHeader = false })
             if (ep.title) setTitle(ep.title);
             if (ep.show?.title) setShowName(ep.show.title);
             if (ep.playback_url) setStreamUrl(ep.playback_url);
+            else setStreamUrl(`https://api.spreaker.com/v2/episodes/${clip.spreakerEpisodeId}/play.mp3`);
           }
         })
         .catch((err) => {
@@ -455,29 +457,75 @@ function AudioClipPlayer({ postId, clip, mediaUrl, post, hasTopHeader = false })
     }
   }, [clip?.spreakerEpisodeId]);
 
-  // 2. Fetch Apple Podcasts episode & show artwork
+  // 2. Fetch Apple Podcasts episode & show metadata AND audio stream (.mp3)
   useEffect(() => {
     const targetUrl = mediaUrl || post?.media_url;
     if (targetUrl && (targetUrl.includes('podcasts.apple.com') || clip?.platform === 'apple')) {
       const match = targetUrl.match(/\/id(\d+)/i);
+      const epMatch = targetUrl.match(/[?&]i=(\d+)/i);
+      const episodeId = epMatch ? epMatch[1] : null;
+
       if (match && match[1]) {
         const appleId = match[1];
-        fetch(`https://itunes.apple.com/lookup?id=${appleId}`)
+        setIsLoadingMetadata(true);
+        fetch(`https://itunes.apple.com/lookup?id=${appleId}&entity=podcastEpisode&limit=200`)
           .then(res => res.json())
           .then(data => {
-            const item = data?.results?.[0];
-            if (item) {
-              const img = item.artworkUrl600 || item.artworkUrl100;
+            if (data?.results && data.results.length > 0) {
+              const showItem = data.results[0];
+              const episodes = data.results.slice(1);
+
+              let matchedEp = null;
+              if (episodeId) {
+                matchedEp = episodes.find(e => String(e.trackId) === String(episodeId));
+              }
+              if (!matchedEp && title) {
+                const normTitle = title.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+                matchedEp = episodes.find(e => {
+                  const normEp = (e.trackName || '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+                  return normEp && (normTitle.includes(normEp) || normEp.includes(normTitle));
+                });
+              }
+              // Fallback: match by chapter / episode number if present in URL slug or title (e.g. 265)
+              if (!matchedEp) {
+                const numMatch = targetUrl.match(/(?:chapter|episode|ep)[-_]?(\d+)/i) || (title ? title.match(/(?:chapter|episode|ep|حلقة|فصل)[-_ ]?(\d+)/i) : null);
+                if (numMatch && numMatch[1]) {
+                  const epNum = numMatch[1];
+                  matchedEp = episodes.find(e => (e.trackName || '').includes(epNum));
+                }
+              }
+              if (!matchedEp && episodes.length > 0) {
+                matchedEp = episodes[0];
+              }
+
+              // Extract direct mp3 audio stream!
+              const stream = matchedEp?.episodeUrl || matchedEp?.previewUrl;
+              if (stream) {
+                setStreamUrl(stream);
+              }
+
+              // Set artwork and titles
+              const img = matchedEp?.artworkUrl600 || matchedEp?.artworkUrl160 || showItem?.artworkUrl600 || showItem?.artworkUrl100;
               if (img) {
                 setArtworkUrl(img);
                 setHasArtworkError(false);
               }
-              if (item.collectionName) setShowName(item.collectionName);
-              else if (item.artistName) setShowName(item.artistName);
+              if (matchedEp?.trackName && (!post?.title || post.title === 'Podcast Audio Clip')) {
+                setTitle(matchedEp.trackName);
+              }
+              if (showItem?.collectionName) {
+                setShowName(showItem.collectionName);
+              } else if (matchedEp?.collectionName) {
+                setShowName(matchedEp.collectionName);
+              }
             }
           })
           .catch((err) => {
-            console.warn('Error fetching Apple Podcasts metadata:', err);
+            console.warn('Error fetching Apple Podcasts metadata & stream:', err);
+            setPendingPlay(false);
+          })
+          .finally(() => {
+            setIsLoadingMetadata(false);
           });
       }
     }
@@ -505,13 +553,19 @@ function AudioClipPlayer({ postId, clip, mediaUrl, post, hasTopHeader = false })
   // Handle Play/Pause
   const togglePlay = (e) => {
     e?.stopPropagation();
-    if (!audioRef.current) return;
+    if (!audioRef.current) {
+      if (!streamUrl) {
+        setPendingPlay(true);
+      }
+      return;
+    }
 
     if (isPlaying) {
       audioRef.current.pause();
       setIsPlaying(false);
+      setPendingPlay(false);
     } else {
-      if (isClipFinished || clipProgress >= clip.duration) {
+      if (isClipFinished || clipProgress >= clip.duration || audioRef.current.currentTime < clip.start || audioRef.current.currentTime >= clip.end) {
         audioRef.current.currentTime = clip.start;
         setClipProgress(0);
         setIsClipFinished(false);
@@ -523,11 +577,25 @@ function AudioClipPlayer({ postId, clip, mediaUrl, post, hasTopHeader = false })
       }
       audioRef.current.play().then(() => {
         setIsPlaying(true);
+        setPendingPlay(false);
       }).catch(err => {
         console.warn('Audio playback error:', err);
       });
     }
   };
+
+  // Auto-play when stream becomes available if user requested play while loading
+  useEffect(() => {
+    if (pendingPlay && streamUrl && audioRef.current) {
+      try {
+        audioRef.current.currentTime = clip.start;
+        audioRef.current.play().then(() => {
+          setIsPlaying(true);
+          setPendingPlay(false);
+        }).catch(() => {});
+      } catch (_) {}
+    }
+  }, [pendingPlay, streamUrl, clip?.start]);
 
   const handleTimeUpdate = () => {
     if (!audioRef.current) return;
@@ -585,13 +653,28 @@ function AudioClipPlayer({ postId, clip, mediaUrl, post, hasTopHeader = false })
         <audio
           ref={audioRef}
           src={streamUrl}
-          preload="metadata"
+          preload="auto"
+          onLoadedMetadata={() => {
+            if (audioRef.current && clip?.start > 0) {
+              audioRef.current.currentTime = clip.start;
+            }
+          }}
+          onCanPlay={() => {
+            if (pendingPlay && audioRef.current) {
+              audioRef.current.currentTime = clip.start;
+              audioRef.current.play().then(() => {
+                setIsPlaying(true);
+                setPendingPlay(false);
+              }).catch(() => {});
+            }
+          }}
           onTimeUpdate={handleTimeUpdate}
           onEnded={() => {
             setIsPlaying(false);
             setIsClipFinished(true);
           }}
-          onError={() => {
+          onError={(e) => {
+            console.warn('Audio element error:', e);
             setIsPlaying(false);
           }}
         />
@@ -622,8 +705,13 @@ function AudioClipPlayer({ postId, clip, mediaUrl, post, hasTopHeader = false })
             )}
 
             {/* Subtle Play/Pause Overlay indicator on hover over image */}
-            <div className={`absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity ${isPlaying ? 'opacity-100' : 'opacity-0 group-hover/cover:opacity-100'}`}>
-              {isPlaying ? (
+            <div className={`absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity ${(isPlaying || pendingPlay) ? 'opacity-100' : 'opacity-0 group-hover/cover:opacity-100'}`}>
+              {pendingPlay ? (
+                <svg className="animate-spin" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+              ) : isPlaying ? (
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
                   <rect x="6" y="4" width="4" height="16" rx="1" />
                   <rect x="14" y="4" width="4" height="16" rx="1" />
@@ -708,10 +796,15 @@ function AudioClipPlayer({ postId, clip, mediaUrl, post, hasTopHeader = false })
             <button
               type="button"
               onClick={togglePlay}
-              className="text-white hover:text-[#38BDF8] transition-colors cursor-pointer"
-              title={isPlaying ? "Pause" : "Play"}
+              className="text-white hover:text-[#38BDF8] transition-colors cursor-pointer flex items-center justify-center w-4 h-4"
+              title={isPlaying ? "Pause" : pendingPlay ? "Loading audio stream..." : "Play"}
             >
-              {isPlaying ? (
+              {pendingPlay ? (
+                <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+              ) : isPlaying ? (
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                   <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
                 </svg>
