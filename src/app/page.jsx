@@ -294,72 +294,99 @@ export default function FigmaLandingPage() {
         </div>
       </section>
 
-      {/* AI Platforms / Integrations Section (Group 18) */}
-      <section className="py-20 md:py-28 px-6 max-w-[1100px] mx-auto">
-        <div className="flex flex-col gap-12">
+      {/* AI Platforms / Integrations Section (Matching Image 2 Reference) */}
+      <section className="py-20 md:py-28 px-6 max-w-[1240px] mx-auto overflow-visible">
+        <div className="flex flex-col gap-10 md:gap-14">
           
-          {/* Heading */}
-          <div className="max-w-[700px]">
-            <TextReveal 
-              text="One extension for every way you share content. Idea capture, AI generation, and automatic publishing to your audience." 
-              className="text-[34px] sm:text-[44px] md:text-[54px] font-normal leading-[1.1] md:leading-[59.4px] tracking-[-1.62px]"
-            />
+          {/* Bold Two-Tone Heading (Matching Image 2) */}
+          <div className="max-w-[880px]">
+            <h2 className="text-[34px] sm:text-[46px] md:text-[56px] lg:text-[62px] font-extrabold leading-[1.08] tracking-[-0.035em]">
+              <span className="text-black">One extension for every way you share content. </span>
+              <span className="text-[#A1A1AA]">Idea capture, AI generation, and automatic publishing to your audience.</span>
+            </h2>
           </div>
 
-          {/* Connected Track & Real Icons */}
-          <div className="relative w-full flex items-center justify-between pt-4 overflow-visible">
+          {/* Connected Track & 4 AI Models + Giant 3D Hero Icon */}
+          <div className="relative w-full flex items-center justify-between pt-6 sm:pt-10 overflow-visible">
             
             {/* Horizontal grey track line */}
-            <div className="absolute top-1/2 left-0 right-10 h-[7px] -translate-y-1/2 bg-[#E3E3E3] rounded-full z-0 pointer-events-none" />
+            <div className="absolute top-1/2 left-0 right-4 sm:right-12 md:right-24 h-[3.5px] -translate-y-1/2 bg-[#E5E7EB] rounded-full z-0 pointer-events-none" />
             
-            {/* The 4 Real Platform Icons - Visually Unified Squircles */}
-            <div className="relative z-10 flex items-center gap-4 sm:gap-6 bg-white pr-4">
+            {/* The 4 AI Model Squircle Icons */}
+            <div className="relative z-10 flex items-center gap-3.5 sm:gap-5 md:gap-6 bg-white pr-4">
               
-              {/* 1. Real X Icon */}
-              <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0 }} className="w-[64px] h-[64px] flex items-center justify-center flex-shrink-0 cursor-pointer">
-                <img 
-                  src="https://api.builder.io/api/v1/image/assets/TEMP/3fa379eb2359ae0c38e089c8c8ca4345fffad47e?width=220" 
-                  alt="X Icon" 
-                  className="w-[62px] h-[62px] object-contain drop-shadow-sm"
-                />
+              {/* 1. DeepSeek */}
+              <motion.div
+                whileHover={{ y: -6, scale: 1.05 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                className="w-[68px] h-[68px] sm:w-[78px] sm:h-[78px] md:w-[86px] md:h-[86px] rounded-[22px] sm:rounded-[26px] bg-gradient-to-b from-[#5875FE] to-[#3B5BFE] p-0.5 shadow-[0_12px_24px_-6px_rgba(59,130,246,0.35)] border border-white/30 flex items-center justify-center cursor-pointer group"
+                title="DeepSeek AI"
+              >
+                <div className="w-full h-full flex items-center justify-center p-3 sm:p-3.5">
+                  <img src="/deepseek.svg" alt="DeepSeek" className="w-full h-full object-contain filter drop-shadow brightness-0 invert" />
+                </div>
               </motion.div>
 
-              {/* 2. Real YouTube Icon */}
-              <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.2 }} className="w-[64px] h-[64px] flex items-center justify-center flex-shrink-0 cursor-pointer">
-                <img 
-                  src="https://api.builder.io/api/v1/image/assets/TEMP/f9ac55019fa5ecf7538be7d497991516a1dcf298?width=360" 
-                  alt="YouTube Icon" 
-                  className="w-[88px] h-[88px] max-w-none object-contain drop-shadow-sm"
-                />
+              {/* 2. Google Gemini */}
+              <motion.div
+                whileHover={{ y: -6, scale: 1.05 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                className="w-[68px] h-[68px] sm:w-[78px] sm:h-[78px] md:w-[86px] md:h-[86px] rounded-[22px] sm:rounded-[26px] bg-[#121214] p-0.5 shadow-[0_12px_24px_-6px_rgba(0,0,0,0.45)] border border-white/15 flex items-center justify-center cursor-pointer group"
+                title="Google Gemini"
+              >
+                <div className="w-full h-full flex items-center justify-center p-3.5 sm:p-4">
+                  <svg viewBox="0 0 24 24" className="w-full h-full" fill="none">
+                    <defs>
+                      <linearGradient id="geminiStarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#4E88F5" />
+                        <stop offset="35%" stopColor="#7B5EF6" />
+                        <stop offset="70%" stopColor="#C45388" />
+                        <stop offset="100%" stopColor="#E2677C" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81" fill="url(#geminiStarGrad)" />
+                  </svg>
+                </div>
               </motion.div>
 
-              {/* 3. Real Podcasts Icon */}
-              <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.4 }} className="w-[64px] h-[64px] flex items-center justify-center flex-shrink-0 cursor-pointer">
-                <img 
-                  src="https://api.builder.io/api/v1/image/assets/TEMP/80149202d18855d0afdc3bf790d25cf31e1200a2?width=328" 
-                  alt="Podcasts Icon" 
-                  className="w-[80px] h-[80px] max-w-none object-contain drop-shadow-sm"
-                />
+              {/* 3. Anthropic Claude */}
+              <motion.div
+                whileHover={{ y: -6, scale: 1.05 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                className="w-[68px] h-[68px] sm:w-[78px] sm:h-[78px] md:w-[86px] md:h-[86px] rounded-[22px] sm:rounded-[26px] bg-gradient-to-b from-[#E27A59] to-[#D56B48] p-0.5 shadow-[0_12px_24px_-6px_rgba(217,119,87,0.35)] border border-white/30 flex items-center justify-center cursor-pointer group"
+                title="Anthropic Claude"
+              >
+                <div className="w-full h-full flex items-center justify-center p-3.5 sm:p-4">
+                  <img src="/claude.svg" alt="Claude" className="w-full h-full object-contain filter drop-shadow brightness-0 invert" />
+                </div>
               </motion.div>
 
-              {/* 4. Real GitHub Icon */}
-              <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.6 }} className="w-[64px] h-[64px] flex items-center justify-center flex-shrink-0 cursor-pointer">
-                <img 
-                  src="https://api.builder.io/api/v1/image/assets/TEMP/3234749be656c40fae05a02bbf4fc30c9731f35c?width=240" 
-                  alt="GitHub Icon" 
-                  className="w-[66px] h-[66px] object-contain drop-shadow-sm"
-                />
+              {/* 4. OpenAI ChatGPT */}
+              <motion.div
+                whileHover={{ y: -6, scale: 1.05 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                className="w-[68px] h-[68px] sm:w-[78px] sm:h-[78px] md:w-[86px] md:h-[86px] rounded-[22px] sm:rounded-[26px] bg-gradient-to-b from-[#10B981] to-[#059669] p-0.5 shadow-[0_12px_24px_-6px_rgba(16,163,127,0.35)] border border-white/30 flex items-center justify-center cursor-pointer group"
+                title="OpenAI ChatGPT"
+              >
+                <div className="w-full h-full flex items-center justify-center p-3 sm:p-3.5">
+                  <img src="/chatgpt.svg" alt="ChatGPT" className="w-full h-full object-contain filter drop-shadow text-white fill-white" />
+                </div>
               </motion.div>
 
             </div>
 
-            {/* Right End: Real Project App Icon */}
-            <div className="relative z-10 flex-shrink-0 pl-3 bg-white">
-              <motion.div animate={{ y: [0, -12, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.8 }} className="w-[95px] h-[95px] sm:w-[105px] sm:h-[105px] flex items-center justify-center cursor-pointer">
+            {/* Right End: Giant 3D Hero App Icon (Matching Image 2) */}
+            <div className="relative z-10 flex-shrink-0 -mr-4 sm:-mr-8 md:-mr-12 lg:-mr-16">
+              <motion.div
+                animate={{ y: [0, -8, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                className="w-[220px] h-[220px] sm:w-[280px] sm:h-[280px] md:w-[340px] md:h-[340px] lg:w-[400px] lg:h-[400px] flex items-center justify-center cursor-pointer relative"
+                style={{ transform: "rotate(-14deg)" }}
+              >
                 <img 
-                  src="https://api.builder.io/api/v1/image/assets/TEMP/6fd35253221d5dfef88a24a4ad7ff335b84dff63?width=375" 
-                  alt="Annotated App Icon" 
-                  className="w-full h-full object-contain drop-shadow-lg"
+                  src="/annotated-hero-3d.png" 
+                  alt="Annotated 3D Icon" 
+                  className="w-full h-full object-contain drop-shadow-[0_25px_50px_rgba(37,99,235,0.25)] hover:scale-105 transition-transform duration-300"
                 />
               </motion.div>
             </div>
