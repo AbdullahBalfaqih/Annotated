@@ -1183,6 +1183,833 @@ function PostCodeBlock({ content, mediaUrl, onOpenReviewModal }) {
   );
 }
 
+function detectLinkType(url) {
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  if (!/^https?:\/\//i.test(trimmed)) return null;
+
+  try {
+    const u = new URL(trimmed);
+    const host = u.hostname.toLowerCase();
+    const pathname = u.pathname.toLowerCase();
+
+    // YouTube
+    if (host.includes('youtube.com') || host.includes('youtu.be')) {
+      const regExp = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/;
+      const match = trimmed.match(regExp);
+      if (match && match[1]) {
+        return {
+          type: 'youtube',
+          videoId: match[1],
+          url: trimmed,
+          platformName: 'YouTube'
+        };
+      }
+    }
+
+    // Audio / Podcasts
+    const isSpreaker = host.includes('spreaker.com');
+    const isApple = host.includes('podcasts.apple.com') || (host.includes('apple.com') && pathname.includes('podcast'));
+    const isSoundCloud = host.includes('soundcloud.com');
+    const isSpotify = host.includes('spotify.com');
+    const isAudioFile = /\.(mp3|m4a|wav|aac|ogg|opus)(\?.*)?$/i.test(trimmed);
+
+    if (isSpreaker || isApple || isSoundCloud || isSpotify || isAudioFile) {
+      let platformName = 'Audio Clip';
+      if (isApple) platformName = 'Apple Podcasts';
+      else if (isSpreaker) platformName = 'Spreaker';
+      else if (isSoundCloud) platformName = 'SoundCloud';
+      else if (isSpotify) platformName = 'Spotify';
+      else if (isAudioFile) platformName = 'Audio File';
+
+      return {
+        type: 'audio',
+        platform: isApple ? 'apple' : isSpreaker ? 'spreaker' : isSoundCloud ? 'soundcloud' : isSpotify ? 'spotify' : 'audio',
+        platformName,
+        url: trimmed
+      };
+    }
+
+    // Direct Video files
+    if (/\.(mp4|webm|mov|mkv)(\?.*)?$/i.test(trimmed)) {
+      return {
+        type: 'videoFile',
+        platformName: 'Video File',
+        url: trimmed
+      };
+    }
+
+    // Direct Image files
+    if (/\.(jpeg|jpg|gif|png|webp|svg)(\?.*)?$/i.test(trimmed)) {
+      return {
+        type: 'image',
+        platformName: 'Image',
+        url: trimmed
+      };
+    }
+
+    // General Web / Social / Article
+    let cleanDomain = host.replace(/^www\./, '');
+    let platformName = cleanDomain;
+    if (cleanDomain.includes('twitter.com') || cleanDomain.includes('x.com')) platformName = 'X / Twitter';
+    else if (cleanDomain.includes('github.com')) platformName = 'GitHub';
+    else if (cleanDomain.includes('medium.com')) platformName = 'Medium';
+    else if (cleanDomain.includes('linkedin.com')) platformName = 'LinkedIn';
+    else if (cleanDomain.includes('reddit.com')) platformName = 'Reddit';
+    else if (cleanDomain.includes('substack.com')) platformName = 'Substack';
+
+    return {
+      type: 'web',
+      domain: cleanDomain,
+      platformName,
+      url: trimmed
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// 1. MEDIA CLIP & TRIMMER MODAL (YouTube, Podcasts, Audio/Video < 90s)
+// ══════════════════════════════════════════════════════════════
+function MediaClipModal({ isOpen, initialUrl = '', initialQuote = '', initialNote = '', onClose, onAttach, onPublishDirect }) {
+  const [urlInput, setUrlInput] = useState(initialUrl || '');
+  const [startTime, setStartTime] = useState(0);
+  const [endTime, setEndTime] = useState(30);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [quote, setQuote] = useState(initialQuote || '');
+  const [note, setNote] = useState(initialNote || '');
+  const [previewKey, setPreviewKey] = useState(0);
+  const [audioStreamUrl, setAudioStreamUrl] = useState(null);
+  const [artworkUrl, setArtworkUrl] = useState(null);
+  const [mediaTitle, setMediaTitle] = useState('');
+  const [showTitle, setShowTitle] = useState('');
+  const [isLoadingMeta, setIsLoadingMeta] = useState(false);
+  const [metaError, setMetaError] = useState(null);
+
+  const audioRef = useRef(null);
+  const videoRef = useRef(null);
+
+  const formatSec = (sec) => {
+    const s = Math.max(0, Math.floor(sec || 0));
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
+  };
+
+  const parseTime = (val) => {
+    if (typeof val === 'number') return Math.max(0, val);
+    if (!val) return 0;
+    const str = String(val).trim();
+    if (str.includes(':')) {
+      const parts = str.split(':').map(p => parseFloat(p) || 0);
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      if (parts.length === 2) return parts[0] * 60 + parts[1];
+    }
+    return Math.max(0, parseFloat(str) || 0);
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      setUrlInput(initialUrl || '');
+      setQuote(initialQuote || '');
+      setNote(initialNote || '');
+
+      let s = 0;
+      let e = 30;
+      if (initialUrl) {
+        try {
+          const u = new URL(initialUrl);
+          if (u.searchParams.has('start')) {
+            s = parseInt(u.searchParams.get('start'), 10) || 0;
+          } else if (u.searchParams.has('t')) {
+            s = parseInt(u.searchParams.get('t'), 10) || 0;
+          }
+          if (u.searchParams.has('end')) {
+            e = parseInt(u.searchParams.get('end'), 10) || (s + 30);
+          } else {
+            e = s + 30;
+          }
+        } catch (_) {}
+      }
+      if (e - s > 90) e = s + 90;
+      if (e <= s) e = s + 30;
+      setStartTime(s);
+      setEndTime(e);
+      setPreviewKey(k => k + 1);
+    }
+  }, [isOpen, initialUrl, initialQuote, initialNote]);
+
+  const detected = detectLinkType(urlInput);
+
+  // Fetch metadata for podcasts & audio streams
+  useEffect(() => {
+    if (!detected || detected.type !== 'audio') {
+      setAudioStreamUrl(null);
+      setArtworkUrl(null);
+      setMediaTitle('');
+      setShowTitle('');
+      return;
+    }
+
+    const targetUrl = urlInput.trim();
+
+    // Spreaker
+    if (detected.platform === 'spreaker') {
+      const match = targetUrl.match(/(?:--|\/episode\/|episode_id=)(\d+)/i);
+      if (match && match[1]) {
+        const epId = match[1];
+        setIsLoadingMeta(true);
+        fetch(`https://api.spreaker.com/v2/episodes/${epId}`)
+          .then(res => res.json())
+          .then(data => {
+            const ep = data?.response?.episode;
+            if (ep) {
+              setArtworkUrl(ep.image_original_url || ep.image_url);
+              setMediaTitle(ep.title || 'Spreaker Episode');
+              setShowTitle(ep.show?.title || 'Spreaker');
+              setAudioStreamUrl(ep.playback_url || `https://api.spreaker.com/v2/episodes/${epId}/play.mp3`);
+            }
+          })
+          .catch(() => {})
+          .finally(() => setIsLoadingMeta(false));
+      }
+      return;
+    }
+
+    // Apple Podcasts
+    if (detected.platform === 'apple') {
+      const match = targetUrl.match(/podcast[s]?\/.*\/id(\d+)/i) || targetUrl.match(/\/id(\d+)/i);
+      const epMatch = targetUrl.match(/[?&]i=(\d+)/i);
+      const episodeId = epMatch ? epMatch[1] : null;
+
+      if (match && match[1]) {
+        const appleId = match[1];
+        setIsLoadingMeta(true);
+        fetch(`https://itunes.apple.com/lookup?id=${appleId}&entity=podcastEpisode&limit=200`)
+          .then(res => res.json())
+          .then(data => {
+            if (data?.results && data.results.length > 0) {
+              const showItem = data.results[0];
+              const episodes = data.results.slice(1);
+              let matchedEp = null;
+              if (episodeId) {
+                matchedEp = episodes.find(e => String(e.trackId) === String(episodeId));
+              }
+              if (!matchedEp && episodes.length > 0) {
+                matchedEp = episodes[0];
+              }
+              const stream = matchedEp?.episodeUrl || matchedEp?.previewUrl;
+              if (stream) setAudioStreamUrl(stream);
+              const img = matchedEp?.artworkUrl600 || matchedEp?.artworkUrl160 || showItem?.artworkUrl600;
+              if (img) setArtworkUrl(img);
+              if (matchedEp?.trackName) setMediaTitle(matchedEp.trackName);
+              if (showItem?.collectionName) setShowTitle(showItem.collectionName);
+            }
+          })
+          .catch(() => {})
+          .finally(() => setIsLoadingMeta(false));
+      }
+      return;
+    }
+
+    // Direct Audio File
+    if (/\.(mp3|m4a|wav|aac|ogg|opus)(\?.*)?$/i.test(targetUrl)) {
+      setAudioStreamUrl(targetUrl);
+      setMediaTitle('Audio File');
+      setShowTitle('Direct Stream');
+    }
+  }, [urlInput, detected?.platform, detected?.type]);
+
+  if (!isOpen) return null;
+
+  const duration = Math.max(0, endTime - startTime);
+  const isAtLimit = duration >= 90;
+
+  const handleStartChange = (val) => {
+    const s = parseTime(val);
+    setStartTime(s);
+    if (endTime - s > 90) {
+      setEndTime(s + 90);
+    } else if (endTime <= s) {
+      setEndTime(s + 15);
+    }
+  };
+
+  const handleEndChange = (val) => {
+    let e = parseTime(val);
+    if (e - startTime > 90) {
+      e = startTime + 90;
+    } else if (e <= startTime) {
+      e = startTime + 5;
+    }
+    setEndTime(e);
+  };
+
+  const applyPreset = (sec) => {
+    const target = startTime + Math.min(sec, 90);
+    setEndTime(target);
+  };
+
+  const setStartFromPlayhead = () => {
+    const cur = Math.floor(currentTime);
+    setStartTime(cur);
+    if (endTime - cur > 90) {
+      setEndTime(cur + 90);
+    } else if (endTime <= cur) {
+      setEndTime(cur + 30);
+    }
+  };
+
+  const setEndFromPlayhead = () => {
+    const cur = Math.ceil(currentTime);
+    if (cur > startTime) {
+      setEndTime(Math.min(cur, startTime + 90));
+    }
+  };
+
+  const previewSegment = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = startTime;
+      audioRef.current.play().catch(() => {});
+    }
+    if (videoRef.current) {
+      videoRef.current.currentTime = startTime;
+      videoRef.current.play().catch(() => {});
+    }
+    setPreviewKey(k => k + 1);
+  };
+
+  const buildFinalUrl = () => {
+    if (!urlInput.trim()) return '';
+    try {
+      const u = new URL(urlInput.trim());
+      u.searchParams.set('start', String(Math.floor(startTime)));
+      u.searchParams.set('end', String(Math.floor(endTime)));
+      return u.toString();
+    } catch (_) {
+      const glue = urlInput.includes('?') ? '&' : '?';
+      return `${urlInput.trim()}${glue}start=${Math.floor(startTime)}&end=${Math.floor(endTime)}`;
+    }
+  };
+
+  const handleAttach = () => {
+    const finalUrl = buildFinalUrl();
+    onAttach({
+      url: finalUrl,
+      quote: quote.trim(),
+      note: note.trim(),
+      title: mediaTitle,
+      artworkUrl
+    });
+    onClose();
+  };
+
+  const handlePublish = () => {
+    const finalUrl = buildFinalUrl();
+    onPublishDirect({
+      mediaUrl: finalUrl,
+      quote: quote.trim(),
+      note: note.trim(),
+      title: mediaTitle,
+      artworkUrl
+    });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-hidden flex flex-col border border-gray-100">
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-50/50 to-white">
+          <div className="flex items-center gap-2.5">
+            <span className="w-9 h-9 rounded-xl bg-[#3297EE]/10 text-[#3297EE] flex items-center justify-center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="6" cy="6" r="3" />
+                <circle cx="6" cy="18" r="3" />
+                <line x1="20" y1="4" x2="8.12" y2="15.88" />
+                <line x1="14.47" y1="14.48" x2="20" y2="20" />
+                <line x1="8.12" y1="8.12" x2="12" y2="12" />
+              </svg>
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-[15px] font-bold text-gray-900 leading-tight">Clip Trimmer & Quote</h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Max 90s</span>
+              </div>
+              <p className="text-[11px] text-gray-500">قص واقتباس مقطع (يوتيوب أو بودكاست) بحد أقصى 90 ثانية</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 flex items-center justify-center transition-colors cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="p-5 overflow-y-auto space-y-4">
+          {/* Media URL Input */}
+          <div>
+            <label className="text-[12px] font-semibold text-gray-700 flex items-center justify-between mb-1.5">
+              <span>Media Link (YouTube, Podcast, or Audio/Video URL)</span>
+              {detected && (
+                <span className="text-[11px] font-medium text-[#3297EE] bg-blue-50 px-2 py-0.5 rounded-md">
+                  {detected.platformName}
+                </span>
+              )}
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="Paste YouTube, Apple Podcasts, Spreaker, or video URL..."
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3297EE]"
+              />
+              <span className="absolute left-3 top-3 text-gray-400">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+              </span>
+            </div>
+          </div>
+
+          {/* Player Preview */}
+          {detected && detected.type === 'youtube' && (
+            <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-inner border border-gray-200">
+              <iframe
+                key={`yt-preview-${detected.videoId}-${Math.floor(startTime)}-${Math.floor(endTime)}-${previewKey}`}
+                src={`https://www.youtube-nocookie.com/embed/${detected.videoId}?start=${Math.floor(startTime)}&end=${Math.floor(endTime)}&rel=0`}
+                title="YouTube Preview"
+                className="w-full h-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          )}
+
+          {detected && detected.type === 'audio' && (
+            <div className="p-4 bg-gray-900 rounded-2xl text-white space-y-3 shadow-md border border-gray-800">
+              <div className="flex items-center gap-3.5">
+                {artworkUrl ? (
+                  <img src={artworkUrl} alt={mediaTitle || 'Cover'} className="w-14 h-14 rounded-xl object-cover border border-gray-700 shrink-0" />
+                ) : (
+                  <div className="w-14 h-14 rounded-xl bg-gray-800 flex items-center justify-center text-gray-400 shrink-0">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10.5px] font-bold text-[#3297EE] uppercase tracking-wider truncate">{showTitle || detected.platformName}</div>
+                  <div className="text-sm font-semibold text-white truncate">{mediaTitle || 'Podcast Episode'}</div>
+                  {isLoadingMeta ? (
+                    <div className="text-[11px] text-gray-400 animate-pulse mt-0.5">Fetching episode audio stream...</div>
+                  ) : (
+                    <div className="text-[11px] text-gray-400 font-mono mt-0.5">Playing head: {formatSec(currentTime)}</div>
+                  )}
+                </div>
+              </div>
+
+              {audioStreamUrl ? (
+                <audio
+                  ref={audioRef}
+                  src={audioStreamUrl}
+                  controls
+                  className="w-full h-9 rounded-lg"
+                  onTimeUpdate={() => {
+                    if (audioRef.current) {
+                      const cur = audioRef.current.currentTime;
+                      setCurrentTime(cur);
+                      if (cur >= endTime) {
+                        audioRef.current.pause();
+                        audioRef.current.currentTime = startTime;
+                      }
+                    }
+                  }}
+                />
+              ) : (
+                <div className="text-[12px] text-gray-400 bg-gray-800/80 p-2.5 rounded-xl text-center">
+                  {isLoadingMeta ? 'Loading audio stream...' : 'Stream ready upon post attachment.'}
+                </div>
+              )}
+            </div>
+          )}
+
+          {detected && detected.type === 'videoFile' && (
+            <div className="rounded-2xl overflow-hidden bg-black shadow-inner border border-gray-200">
+              <video
+                ref={videoRef}
+                src={urlInput}
+                controls
+                className="w-full aspect-video"
+                onTimeUpdate={() => {
+                  if (videoRef.current) {
+                    const cur = videoRef.current.currentTime;
+                    setCurrentTime(cur);
+                    if (cur >= endTime) {
+                      videoRef.current.pause();
+                      videoRef.current.currentTime = startTime;
+                    }
+                  }
+                }}
+              />
+            </div>
+          )}
+
+          {/* Trimming & Duration Section (< 90s Ceiling) */}
+          <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3.5">
+            {/* Duration Meter */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-gray-800 flex items-center gap-1.5">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3297EE" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>Clip Duration:</span>
+                  <span className={`font-mono font-bold ${isAtLimit ? 'text-amber-600' : 'text-[#3297EE]'}`}>
+                    {formatSec(duration)} ({Math.round(duration)}s)
+                  </span>
+                </span>
+                <span className="text-[11px] font-semibold text-gray-400">
+                  Strict Limit: 90s max
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-300 ${isAtLimit ? 'bg-amber-500' : 'bg-[#3297EE]'}`}
+                  style={{ width: `${Math.min(100, (duration / 90) * 100)}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Quick Duration Presets */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] text-gray-500 font-medium mr-1">Quick Length:</span>
+              {[15, 30, 45, 60, 90].map(s => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => applyPreset(s)}
+                  className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all cursor-pointer ${
+                    Math.round(duration) === s
+                      ? 'bg-[#3297EE] text-white shadow-xs font-semibold'
+                      : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {s === 90 ? '90s (Max)' : `${s}s`}
+                </button>
+              ))}
+            </div>
+
+            {/* Start and End Inputs */}
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="text-[11px] font-semibold text-gray-700 block mb-1">Start Time (mm:ss or sec)</label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={formatSec(startTime)}
+                    onChange={(e) => handleStartChange(e.target.value)}
+                    placeholder="00:00"
+                    className="w-full px-3 py-2 text-xs font-mono font-semibold rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#3297EE]"
+                  />
+                  {(detected?.type === 'audio' || detected?.type === 'videoFile') && (
+                    <button
+                      type="button"
+                      onClick={setStartFromPlayhead}
+                      title="Set current playhead as start"
+                      className="px-2 py-2 text-[11px] bg-blue-50 text-[#3297EE] hover:bg-blue-100 rounded-xl font-medium shrink-0 cursor-pointer"
+                    >
+                      📌 Here
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-gray-700 block mb-1">End Time (mm:ss or sec)</label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={formatSec(endTime)}
+                    onChange={(e) => handleEndChange(e.target.value)}
+                    placeholder="00:30"
+                    className="w-full px-3 py-2 text-xs font-mono font-semibold rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#3297EE]"
+                  />
+                  {(detected?.type === 'audio' || detected?.type === 'videoFile') && (
+                    <button
+                      type="button"
+                      onClick={setEndFromPlayhead}
+                      title="Set current playhead as end"
+                      className="px-2 py-2 text-[11px] bg-blue-50 text-[#3297EE] hover:bg-blue-100 rounded-xl font-medium shrink-0 cursor-pointer"
+                    >
+                      📌 Here
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Preview Segment Button */}
+            <div className="flex items-center justify-between pt-1">
+              <button
+                type="button"
+                onClick={previewSegment}
+                className="px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-gray-700 text-xs font-medium hover:bg-gray-100 flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <span>Preview Cut ({formatSec(startTime)} - {formatSec(endTime)})</span>
+              </button>
+
+              {isAtLimit && (
+                <span className="text-[11px] text-amber-600 font-semibold flex items-center gap-1">
+                  <span>⚡ Hard 90s ceiling active</span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Quote & Annotation Inputs */}
+          <div className="space-y-3 pt-1">
+            <div>
+              <label className="text-[12px] font-semibold text-gray-800 flex items-center justify-between mb-1">
+                <span>Quote from this clip (المحتوى المقتبس من المقطع)</span>
+                <span className="text-[10px] text-gray-400 font-normal">Featured in signature blue card</span>
+              </label>
+              <textarea
+                rows={2}
+                value={quote}
+                onChange={(e) => setQuote(e.target.value)}
+                placeholder="Paste key quotes, notable transcript lines, or punchline from this clip..."
+                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#3297EE] resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-[12px] font-semibold text-gray-800 flex items-center justify-between mb-1">
+                <span>Your comment & perspective (تعليقك ورأيك)</span>
+                <span className="text-[10px] text-gray-400 font-normal">Optional</span>
+              </label>
+              <textarea
+                rows={2}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Why is this moment insightful? Share your takeaway..."
+                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#3297EE] resize-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-xs font-medium text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleAttach}
+              disabled={!urlInput.trim()}
+              className="px-4 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-100 text-gray-800 text-xs font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-40"
+            >
+              Insert into Composer
+            </button>
+            <button
+              type="button"
+              onClick={handlePublish}
+              disabled={!urlInput.trim()}
+              className="px-4.5 py-2 rounded-xl bg-[#3297EE] hover:bg-blue-600 text-white text-xs font-semibold shadow-md transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1.5"
+            >
+              <span>Publish Clip</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// 2. WEB & SOCIAL LINK QUOTER MODAL (News, X/Twitter, Articles)
+// ══════════════════════════════════════════════════════════════
+function WebQuoteModal({ isOpen, initialUrl = '', initialQuote = '', initialNote = '', onClose, onAttach, onPublishDirect }) {
+  const [urlInput, setUrlInput] = useState(initialUrl || '');
+  const [quote, setQuote] = useState(initialQuote || '');
+  const [note, setNote] = useState(initialNote || '');
+
+  useEffect(() => {
+    if (isOpen) {
+      setUrlInput(initialUrl || '');
+      setQuote(initialQuote || '');
+      setNote(initialNote || '');
+    }
+  }, [isOpen, initialUrl, initialQuote, initialNote]);
+
+  if (!isOpen) return null;
+
+  let domain = '';
+  try {
+    domain = new URL(urlInput.trim()).hostname.replace(/^www\./, '');
+  } catch (_) {
+    domain = urlInput.trim();
+  }
+
+  const handleAttach = () => {
+    onAttach({
+      url: urlInput.trim(),
+      quote: quote.trim(),
+      note: note.trim()
+    });
+    onClose();
+  };
+
+  const handlePublish = () => {
+    onPublishDirect({
+      mediaUrl: urlInput.trim(),
+      quote: quote.trim(),
+      note: note.trim()
+    });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-hidden flex flex-col border border-gray-100">
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-50/50 to-white">
+          <div className="flex items-center gap-2.5">
+            <span className="w-9 h-9 rounded-xl bg-[#3297EE]/10 text-[#3297EE] flex items-center justify-center">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+              </svg>
+            </span>
+            <div>
+              <h3 className="text-[15px] font-bold text-gray-900 leading-tight">Quote via URL</h3>
+              <p className="text-[11px] text-gray-500">اقتباس محتوى من رابط (أخبار، وسائل تواصل، مقالات) والتعليق عليه</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 flex items-center justify-center transition-colors cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="p-5 overflow-y-auto space-y-4">
+          {/* URL Input */}
+          <div>
+            <label className="text-[12px] font-semibold text-gray-700 block mb-1.5">Web / Article / Social URL</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="https://example.com/article, https://x.com/post/..."
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3297EE]"
+              />
+              <span className="absolute left-3 top-3 text-gray-400">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+              </span>
+            </div>
+          </div>
+
+          {/* Website Preview Badge */}
+          {domain && (
+            <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <img
+                  src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
+                  alt="favicon"
+                  className="w-5 h-5 rounded-sm object-contain shrink-0"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+                <span className="text-xs font-semibold text-gray-700 truncate">{domain}</span>
+              </div>
+              <a
+                href={urlInput}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] font-medium text-[#3297EE] hover:underline flex items-center gap-1 shrink-0"
+              >
+                <span>Visit Page</span> ↗
+              </a>
+            </div>
+          )}
+
+          {/* Quote Excerpt Input */}
+          <div>
+            <label className="text-[12px] font-semibold text-gray-800 flex items-center justify-between mb-1">
+              <span>Quoted Excerpt / Passage (المحتوى المقتبس)</span>
+              <span className="text-[10px] text-gray-400 font-normal">Required</span>
+            </label>
+            <textarea
+              rows={3}
+              value={quote}
+              onChange={(e) => setQuote(e.target.value)}
+              placeholder="Paste the excerpt, headline, statement, or paragraph you are quoting..."
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#3297EE] resize-none"
+              autoFocus
+            />
+          </div>
+
+          {/* Note / Analysis Input */}
+          <div>
+            <label className="text-[12px] font-semibold text-gray-800 flex items-center justify-between mb-1">
+              <span>Your Comment & Perspective (تعليقك وملاحظاتك)</span>
+              <span className="text-[10px] text-gray-400 font-normal">Optional</span>
+            </label>
+            <textarea
+              rows={3}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Add your analysis, counter-argument, or thoughts on this quote..."
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#3297EE] resize-none"
+            />
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-xs font-medium text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleAttach}
+              disabled={!quote.trim() && !urlInput.trim()}
+              className="px-4 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-100 text-gray-800 text-xs font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-40"
+            >
+              Insert into Composer
+            </button>
+            <button
+              type="button"
+              onClick={handlePublish}
+              disabled={!quote.trim() && !urlInput.trim()}
+              className="px-4.5 py-2 rounded-xl bg-[#3297EE] hover:bg-blue-600 text-white text-xs font-semibold shadow-md transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1.5"
+            >
+              <span>Publish Quote</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState('home');
   const [currentUser, setCurrentUser] = useState(null);
@@ -1199,6 +2026,8 @@ export default function HomePage() {
   const [openPostMenuId, setOpenPostMenuId] = useState(null);
   const [promptModal, setPromptModal] = useState(null);
   const [promptInputValue, setPromptInputValue] = useState('');
+  const [mediaClipModal, setMediaClipModal] = useState(null);
+  const [webQuoteModal, setWebQuoteModal] = useState(null);
   const fileInputRef = useRef(null);
   const [commentInputs, setCommentInputs] = useState({});
   const [editingCommentId, setEditingCommentId] = useState(null);
@@ -2314,36 +3143,36 @@ export default function HomePage() {
     }
   };
 
-  const handlePaste = (e) => {
-    const items = e.clipboardData?.items;
-    if (items) {
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-          const file = items[i].getAsFile();
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            setMediaUrl(reader.result);
-          };
-          reader.readAsDataURL(file);
-          break;
-        }
-      }
+  const handleAttachToComposer = ({ url, quote, note }) => {
+    if (url) setMediaUrl(url);
+    if (quote) {
+      setQuoteText(quote);
+      setShowQuoteInput(true);
+    }
+    if (note) {
+      setPostText(note);
     }
   };
 
-  const handleCreatePost = async () => {
+  const publishCustomPost = async ({ mediaUrl: customMediaUrl, quote, note }) => {
     if (!currentUser) {
       if (typeof window !== 'undefined') window.location.href = getLoginTarget();
       return;
     }
-    const trimmedPost = postText.trim();
-    const trimmedQuote = quoteText.trim();
-    if ((!trimmedPost && !trimmedQuote) || isPosting) return;
-    setIsPosting(true);
-
-    let finalContent = trimmedPost;
+    const trimmedQuote = (quote || '').trim();
+    const trimmedNote = (note || '').trim();
+    let finalContent = trimmedNote;
     if (trimmedQuote) {
-      finalContent = trimmedPost ? `"${trimmedQuote}"\n\n${trimmedPost}` : `"${trimmedQuote}"`;
+      finalContent = trimmedNote ? `"${trimmedQuote}"\n\n${trimmedNote}` : `"${trimmedQuote}"`;
+    }
+    if (!finalContent && !customMediaUrl) return;
+
+    let detectedMediaType = 'none';
+    if (customMediaUrl) {
+      if (parseYouTubeClip(customMediaUrl)) detectedMediaType = 'video';
+      else if (parseAudioClip(customMediaUrl)) detectedMediaType = 'audio';
+      else if (isDirectImageUrl(customMediaUrl)) detectedMediaType = 'image';
+      else detectedMediaType = 'link';
     }
 
     const token = localStorage.getItem('annotated_token');
@@ -2353,10 +3182,10 @@ export default function HomePage() {
       author_handle: currentUser.handle,
       author_avatar: currentUser.avatar_url,
       time: 'Just now',
-      content: finalContent,
+      content: finalContent || 'Shared clip annotation',
       hashtags: ['#Annotated', '#WorkspaceNotes'],
-      media_url: mediaUrl,
-      media_type: mediaUrl ? 'image' : 'none',
+      media_url: customMediaUrl,
+      media_type: detectedMediaType,
       likes_count: 0,
       is_liked: false,
       comments: []
@@ -2380,7 +3209,9 @@ export default function HomePage() {
             },
             body: JSON.stringify({
               content: newPostItem.content,
-              hashtags: newPostItem.hashtags
+              hashtags: newPostItem.hashtags,
+              mediaUrl: newPostItem.media_url,
+              mediaType: newPostItem.media_type
             })
           });
           const data = await res.json();
@@ -2398,7 +3229,154 @@ export default function HomePage() {
             content: newPostItem.content,
             hashtags: newPostItem.hashtags,
             media_url: newPostItem.media_url,
-            media_type: newPostItem.media_url ? 'image' : 'none'
+            media_type: newPostItem.media_type
+          }).select('*, users(name, handle, avatar_url)').single();
+
+          if (dbPost) {
+            setPosts(prev => prev.map(p => p.id === newPostItem.id ? {
+              ...p,
+              id: dbPost.id,
+              author_name: dbPost.users?.name || currentUser.name,
+              author_handle: dbPost.users?.handle || currentUser.handle,
+              author_avatar: dbPost.users?.avatar_url || currentUser.avatar_url
+            } : p));
+          }
+        } catch (sErr) {
+          console.error('Supabase post creation error:', sErr);
+        }
+      }
+    }
+  };
+
+  const handlePaste = (e) => {
+    // 1. Check for images from clipboard
+    const items = e.clipboardData?.items;
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type && items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              setMediaUrl(reader.result);
+            };
+            reader.readAsDataURL(file);
+            return;
+          }
+        }
+      }
+    }
+
+    // 2. Check for URL shortcuts in clipboard
+    const text = e.clipboardData?.getData('text')?.trim();
+    if (text && /^https?:\/\//i.test(text)) {
+      const detected = detectLinkType(text);
+      if (detected) {
+        e.preventDefault();
+        if (detected.type === 'youtube' || detected.type === 'audio' || detected.type === 'videoFile') {
+          // Open 90s media trimmer & quote modal
+          setMediaClipModal({
+            isOpen: true,
+            url: text,
+            quote: quoteText || '',
+            note: postText || ''
+          });
+          return;
+        } else if (detected.type === 'image') {
+          setMediaUrl(text);
+          return;
+        } else {
+          // Open web/social link quoter modal
+          setWebQuoteModal({
+            isOpen: true,
+            url: text,
+            quote: quoteText || '',
+            note: postText || ''
+          });
+          return;
+        }
+      }
+    }
+  };
+
+  const handleCreatePost = async () => {
+    if (!currentUser) {
+      if (typeof window !== 'undefined') window.location.href = getLoginTarget();
+      return;
+    }
+    const trimmedPost = postText.trim();
+    const trimmedQuote = quoteText.trim();
+    if ((!trimmedPost && !trimmedQuote) || isPosting) return;
+    setIsPosting(true);
+
+    let finalContent = trimmedPost;
+    if (trimmedQuote) {
+      finalContent = trimmedPost ? `"${trimmedQuote}"\n\n${trimmedPost}` : `"${trimmedQuote}"`;
+    }
+
+    let detectedMediaType = 'none';
+    if (mediaUrl) {
+      if (parseYouTubeClip(mediaUrl)) detectedMediaType = 'video';
+      else if (parseAudioClip(mediaUrl)) detectedMediaType = 'audio';
+      else if (isDirectImageUrl(mediaUrl)) detectedMediaType = 'image';
+      else detectedMediaType = 'link';
+    }
+
+    const token = localStorage.getItem('annotated_token');
+    const newPostItem = {
+      id: 'local-' + Date.now(),
+      author_name: currentUser.name,
+      author_handle: currentUser.handle,
+      author_avatar: currentUser.avatar_url,
+      time: 'Just now',
+      content: finalContent,
+      hashtags: ['#Annotated', '#WorkspaceNotes'],
+      media_url: mediaUrl,
+      media_type: detectedMediaType,
+      likes_count: 0,
+      is_liked: false,
+      comments: []
+    };
+
+    setPosts(prev => [newPostItem, ...prev]);
+    setPostText('');
+    setQuoteText('');
+    setShowQuoteInput(false);
+    setMediaUrl(null);
+
+    if (token) {
+      let saved = false;
+      if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+        try {
+          const res = await fetch('http://localhost:5000/api/posts', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              content: newPostItem.content,
+              hashtags: newPostItem.hashtags,
+              mediaUrl: newPostItem.media_url,
+              mediaType: newPostItem.media_type
+            })
+          });
+          const data = await res.json();
+          if (data.success && data.post) {
+            setPosts(prev => prev.map(p => p.id === newPostItem.id ? { ...p, id: data.post.id } : p));
+            saved = true;
+          }
+        } catch (_) { }
+      }
+
+      if (!saved && currentUser?.id) {
+        try {
+          const { data: dbPost } = await supabase.from('posts').insert({
+            user_id: currentUser.id,
+            content: newPostItem.content,
+            hashtags: newPostItem.hashtags,
+            media_url: newPostItem.media_url,
+            media_type: newPostItem.media_type
           }).select('*, users(name, handle, avatar_url)').single();
 
           if (dbPost) {
@@ -2793,6 +3771,32 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-black font-poppins selection:bg-blue-600 selection:text-white">
+      {/* 90-Second Media Clip & Trimmer Modal */}
+      {mediaClipModal && mediaClipModal.isOpen && (
+        <MediaClipModal
+          isOpen={mediaClipModal.isOpen}
+          initialUrl={mediaClipModal.url || ''}
+          initialQuote={mediaClipModal.quote || quoteText || ''}
+          initialNote={mediaClipModal.note || postText || ''}
+          onClose={() => setMediaClipModal(null)}
+          onAttach={handleAttachToComposer}
+          onPublishDirect={publishCustomPost}
+        />
+      )}
+
+      {/* Web & Social Link Quoter Modal */}
+      {webQuoteModal && webQuoteModal.isOpen && (
+        <WebQuoteModal
+          isOpen={webQuoteModal.isOpen}
+          initialUrl={webQuoteModal.url || ''}
+          initialQuote={webQuoteModal.quote || quoteText || ''}
+          initialNote={webQuoteModal.note || postText || ''}
+          onClose={() => setWebQuoteModal(null)}
+          onAttach={handleAttachToComposer}
+          onPublishDirect={publishCustomPost}
+        />
+      )}
+
       {/* URL Prompt Modal */}
       {promptModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
@@ -3973,10 +4977,19 @@ export default function HomePage() {
                         type="text"
                         value={quoteText}
                         onChange={(e) => setQuoteText(e.target.value)}
-                        placeholder="Quote text from tweet, website, or research paper..."
+                        onPaste={handlePaste}
+                        placeholder="Quote text or paste any URL..."
                         className="flex-1 bg-transparent text-[12px] font-medium text-white placeholder-white/70 focus:outline-none"
                         autoFocus
                       />
+                      <button
+                        type="button"
+                        onClick={() => setWebQuoteModal({ isOpen: true, url: '', quote: quoteText, note: postText })}
+                        className="px-2 py-0.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                        title="Quote from any URL (News, Twitter, Blog, Article)"
+                      >
+                        <span>🔗 URL</span>
+                      </button>
                       <button
                         type="button"
                         onClick={() => { setShowQuoteInput(false); setQuoteText(''); }}
@@ -4005,7 +5018,7 @@ export default function HomePage() {
                         onChange={(e) => setPostText(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleCreatePost()}
                         onPaste={handlePaste}
-                        placeholder={showQuoteInput ? "Write your comment on this quote..." : "Share an annotation, idea, or AI summary (Press Enter)..."}
+                        placeholder={showQuoteInput ? "Write your comment on this quote..." : "Share an annotation, idea, or paste URL (Press Enter)..."}
                         className="w-full bg-transparent text-[12px] font-normal text-[#202020] placeholder-[#929292] focus:outline-none"
                       />
                       <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
@@ -4048,7 +5061,7 @@ export default function HomePage() {
 
                   {/* Media Actions & Visibility Row */}
                   <div className="flex items-center justify-between pt-1">
-                    <div className="flex items-center gap-4 sm:gap-5">
+                    <div className="flex items-center gap-3.5 sm:gap-4.5">
                       <button
                         type="button"
                         onClick={() => setShowQuoteInput(!showQuoteInput)}
@@ -4062,14 +5075,32 @@ export default function HomePage() {
                         <span>Quote</span>
                       </button>
 
+                      <button
+                        type="button"
+                        onClick={() => setWebQuoteModal({ isOpen: true, url: '', quote: quoteText, note: postText })}
+                        className="flex items-center gap-1.5 text-[12px] font-medium text-white hover:opacity-80 transition-opacity cursor-pointer"
+                        title="Quote content from any Web URL (News, Twitter, Blog, Article)"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                        </svg>
+                        <span>Quote URL</span>
+                      </button>
+
                       <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-[12px] font-medium text-white hover:opacity-80 transition-opacity cursor-pointer">
                         <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" /></svg>
                         <span>Screenshot</span>
                       </button>
 
-                      <button onClick={() => { setPromptModal({ title: 'Attach Video', placeholder: 'Enter YouTube or media URL...' }); }} className="flex items-center gap-2 text-[12px] font-medium text-white hover:opacity-80 transition-opacity cursor-pointer">
+                      <button
+                        type="button"
+                        onClick={() => setMediaClipModal({ isOpen: true, url: '', quote: quoteText, note: postText })}
+                        className="flex items-center gap-2 text-[12px] font-medium text-white hover:opacity-80 transition-opacity cursor-pointer"
+                        title="Trim & Quote YouTube, Podcast, or Video (< 90s)"
+                      >
                         <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" /></svg>
-                        <span>Video URL</span>
+                        <span>Clip & Quote</span>
                       </button>
 
                       <button onClick={() => window.alert("Canvas Note feature coming soon!")} className="flex items-center gap-2 text-[12px] font-medium text-white hover:opacity-80 transition-opacity cursor-pointer">
