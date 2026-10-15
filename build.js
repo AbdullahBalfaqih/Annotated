@@ -117,6 +117,9 @@ async function buildNextExtension() {
   });
   console.log('✨ Synced extension scripts, popup, and manifest to root directory');
 
+  console.log('🚀 Step 4: Packaging latest chrome-extension.zip for landing page download...');
+  packageExtensionZip(outDir, distDir);
+
   console.log('\n🎉 SUCCESS! Next.js Chrome Extension is ready in folder: out/ (and dist/ & root)');
   console.log('👉 Load unpacked extension in Chrome from root, out/, or dist/');
 }
@@ -280,6 +283,70 @@ function replaceInDirectory(dirPath) {
         content = content.replace(/\/_next\//g, '/next_assets/').replace(/_next\//g, 'next_assets/');
         fs.writeFileSync(fullPath, content, 'utf8');
       }
+    }
+  }
+}
+
+function packageExtensionZip(outDir, distDir) {
+  const stagingDir = path.join(__dirname, '.extension_staging');
+  if (fs.existsSync(stagingDir)) {
+    fs.rmSync(stagingDir, { recursive: true, force: true });
+  }
+  fs.mkdirSync(stagingDir, { recursive: true });
+
+  const extFiles = [
+    'manifest.json', 'background.js', 'content.js', 'content.css',
+    'popup.html', 'popup.js', 'popup.css',
+    'options.html', 'options.js',
+    'home.html', 'login.html', '404.html'
+  ];
+
+  extFiles.forEach(f => {
+    const src = path.join(outDir, f);
+    if (fs.existsSync(src)) {
+      fs.copyFileSync(src, path.join(stagingDir, f));
+    }
+  });
+
+  const extDirs = ['icons', 'next_assets'];
+  extDirs.forEach(d => {
+    const src = path.join(outDir, d);
+    if (fs.existsSync(src)) {
+      fs.cpSync(src, path.join(stagingDir, d), { recursive: true });
+    }
+  });
+
+  const tempZip = path.join(__dirname, '.extension_temp.zip');
+  if (fs.existsSync(tempZip)) fs.rmSync(tempZip, { force: true });
+
+  try {
+    if (process.platform === 'win32') {
+      execSync(`powershell -NoProfile -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::CreateFromDirectory('${stagingDir}', '${tempZip}')"`);
+    } else {
+      execSync(`cd "${stagingDir}" && zip -r "${tempZip}" .`);
+    }
+
+    if (fs.existsSync(tempZip)) {
+      const zipTargets = [
+        path.join(__dirname, 'public', 'chrome-extension.zip'),
+        path.join(outDir, 'chrome-extension.zip'),
+        path.join(distDir, 'chrome-extension.zip')
+      ];
+
+      zipTargets.forEach(dest => {
+        const parent = path.dirname(dest);
+        if (!fs.existsSync(parent)) fs.mkdirSync(parent, { recursive: true });
+        fs.copyFileSync(tempZip, dest);
+      });
+      fs.rmSync(tempZip, { force: true });
+      const sizeKB = Math.round(fs.statSync(zipTargets[0]).size / 1024);
+      console.log(`📦 Created latest chrome-extension.zip (${sizeKB} KB) in public/, out/, and dist/`);
+    }
+  } catch (err) {
+    console.warn('⚠️ Warning: Could not package chrome-extension.zip:', err.message);
+  } finally {
+    if (fs.existsSync(stagingDir)) {
+      fs.rmSync(stagingDir, { recursive: true, force: true });
     }
   }
 }
