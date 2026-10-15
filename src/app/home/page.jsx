@@ -1537,7 +1537,7 @@ function MediaClipModal({ isOpen, initialUrl = '', initialQuote = '', initialNot
                 <h3 className="text-[15px] font-bold text-gray-900 leading-tight">Clip Trimmer & Quote</h3>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Max 90s</span>
               </div>
-              <p className="text-[11px] text-gray-500">قص واقتباس مقطع (يوتيوب أو بودكاست) بحد أقصى 90 ثانية</p>
+              <p className="text-[11px] text-gray-500">Trim and quote YouTube or podcast clips up to 90 seconds</p>
             </div>
           </div>
           <button
@@ -1770,7 +1770,7 @@ function MediaClipModal({ isOpen, initialUrl = '', initialQuote = '', initialNot
           <div className="space-y-3 pt-1">
             <div>
               <label className="text-[12px] font-semibold text-gray-800 flex items-center justify-between mb-1">
-                <span>Quote from this clip (المحتوى المقتبس من المقطع)</span>
+                <span>Quote from this clip</span>
                 <span className="text-[10px] text-gray-400 font-normal">Featured in signature blue card</span>
               </label>
               <textarea
@@ -1784,7 +1784,7 @@ function MediaClipModal({ isOpen, initialUrl = '', initialQuote = '', initialNot
 
             <div>
               <label className="text-[12px] font-semibold text-gray-800 flex items-center justify-between mb-1">
-                <span>Your comment & perspective (تعليقك ورأيك)</span>
+                <span>Your commentary & thoughts</span>
                 <span className="text-[10px] text-gray-400 font-normal">Optional</span>
               </label>
               <textarea
@@ -1890,7 +1890,7 @@ function WebQuoteModal({ isOpen, initialUrl = '', initialQuote = '', initialNote
             </span>
             <div>
               <h3 className="text-[15px] font-bold text-gray-900 leading-tight">Quote via URL</h3>
-              <p className="text-[11px] text-gray-500">اقتباس محتوى من رابط (أخبار، وسائل تواصل، مقالات) والتعليق عليه</p>
+              <p className="text-[11px] text-gray-500">Quote excerpts from news, social posts, or articles and annotate</p>
             </div>
           </div>
           <button
@@ -1946,7 +1946,7 @@ function WebQuoteModal({ isOpen, initialUrl = '', initialQuote = '', initialNote
           {/* Quote Excerpt Input */}
           <div>
             <label className="text-[12px] font-semibold text-gray-800 flex items-center justify-between mb-1">
-              <span>Quoted Excerpt / Passage (المحتوى المقتبس)</span>
+              <span>Quoted Excerpt / Passage</span>
               <span className="text-[10px] text-gray-400 font-normal">Required</span>
             </label>
             <textarea
@@ -1962,7 +1962,7 @@ function WebQuoteModal({ isOpen, initialUrl = '', initialQuote = '', initialNote
           {/* Note / Analysis Input */}
           <div>
             <label className="text-[12px] font-semibold text-gray-800 flex items-center justify-between mb-1">
-              <span>Your Comment & Perspective (تعليقك وملاحظاتك)</span>
+              <span>Your Commentary & Perspective</span>
               <span className="text-[10px] text-gray-400 font-normal">Optional</span>
             </label>
             <textarea
@@ -2930,12 +2930,12 @@ export default function HomePage() {
 
     const cleanHandle = onboardingHandle.trim().toLowerCase();
     if (!cleanHandle || cleanHandle.length < 3) {
-      setOnboardingError('اسم المستخدم (Username) مطلوب ويجب أن لا يقل عن 3 أحرف إنجليزية.');
+      setOnboardingError('Username is required and must be at least 3 characters.');
       return;
     }
 
     if (!/^[a-zA-Z0-9_]{3,}$/.test(cleanHandle)) {
-      setOnboardingError('اسم المستخدم يجب أن يحتوي على أحرف إنجليزية أو أرقام أو شرطة سفلية فقط (3 أحرف على الأقل).');
+      setOnboardingError('Username can only contain English letters, numbers, or underscores (at least 3 characters).');
       return;
     }
 
